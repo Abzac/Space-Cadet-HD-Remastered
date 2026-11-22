@@ -1,123 +1,95 @@
-<!-- markdownlint-disable-file MD033 -->
+# Space Cadet HD
 
-# SpaceCadetPinball
+**A Windows remaster of 3D Pinball: Space Cadet.** The mission targets still drop with the same clack, the arrows still lead you to the launch ramp, and an ill-timed flip can still cost you the ball. The difference is easiest to see in motion. Send the ball past a lit bumper and watch its colour travel across the polished steel.
 
-## Summary
+![The Space Cadet table during play, with the original backglass layout and live mission display](docs/screenshots/table.webp)
 
-Reverse engineering of `3D Pinball for Windows - Space Cadet`, a game bundled with Windows.
+The artwork may feel unfamiliar on the first launch, especially if you know the Windows table by heart. Give it a ball or two. The old routes, sounds and lamp cues are good landmarks while your eye adjusts to the new materials.
 
-## How to play
+The screenshots on this page were captured in SDR from version **7.0.2**. On an HDR display, the lamps and dot-matrix displays have additional brightness headroom.
 
-Place compiled executable into a folder containing original game resources (not included).\
-Supports data files from Windows and Full Tilt versions of the game.
+## The table
 
-## Known source ports
+- **Original rules and scoring.** The Windows table data drives the layout, collision geometry, switches and mechanisms. Complete missions, advance through the ranks, light the return lanes and shoot the wormholes. Classic and Meditative each keep their own top five.
+- **Four-times-resolution artwork.** The HD set combines AI-assisted enlargement with redrawn and aligned artwork. The artwork and its masks follow the original mechanisms as they move. Spinner blades rotate about their axles, the plunger spring compresses between its original poses, and raised rails pass in front of the lamps below. HD graphics and subtle edge smoothing each have a switch in Settings.
+- **Light with a source.** On compatible Windows displays, Direct3D 11 outputs linear scRGB HDR. Lit inserts, the dot-matrix displays and electrical flashes can rise above the brightness of the printed playfield. The steel ball traces reflection rays against relief reconstructed from the original depth data. Nearby lights and metal guides contribute to what you see as it rolls. The game also runs in SDR.
+- **More precise rebounds.** The solver locates the first contact in each step and uses the outgoing speed for the remaining time. A second contact can happen in the same step. Left and right flipper strokes receive the same angular precision. Friction at the table, rails and flippers gives the ball its own angular velocity. Side spin can change the direction of a glancing rebound, and the polish turns with the ball.
 
-| Platform           | Author          | URL                                                                                                        |
-| ------------------ | --------------- | ---------------------------------------------------------------------------------------------------------- |
-| PS Vita            | Axiom           | <https://github.com/suicvne/SpaceCadetPinball_Vita>                                                        |
-| Emscripten         | alula           | <https://github.com/alula/SpaceCadetPinball> <br> Play online: <https://alula.github.io/SpaceCadetPinball> |
-| Nintendo Switch    | averne          | <https://github.com/averne/SpaceCadetPinball-NX>                                                           |
-| webOS TV           | mariotaku       | <https://github.com/webosbrew/SpaceCadetPinball>                                                           |
-| Android (WIP)      | Iscle           | https://github.com/Iscle/SpaceCadetPinball                                                                 |
-| Nintendo Wii       | MaikelChan      | https://github.com/MaikelChan/SpaceCadetPinball                                                            |
-| Nintendo 3DS       | MaikelChan      | https://github.com/MaikelChan/SpaceCadetPinball/tree/3ds                                                   |
-| Nintendo DS        | Headshotnoby    | https://github.com/headshot2017/3dpinball-nds                                                              |
-| Nintendo Wii U     | IntriguingTiles | https://github.com/IntriguingTiles/SpaceCadetPinball-WiiU                                                  |
-| PlayStation 2      | Headshotnoby    | https://github.com/headshot2017/3dpinball-ps2                                                              |
-| Sega Dreamcast     | Headshotnoby    | https://github.com/headshot2017/3dpinball-dc                                                               |
-| MorphOS            | BeWorld         | https://www.morphos-storage.net/?id=1688897                                                                |
-| AmigaOS 4          | rjd324          | http://aminet.net/package/game/actio/spacecadetpinball-aos4                                                |
-| Android (WIP)      | fexed           | https://github.com/fexed/Pinball-on-Android                                                                |
+![An electrical discharge at a slingshot during play](docs/screenshots/electric-rebound.webp)
 
-Platforms covered by this project: desktop Windows, Linux and macOS.
+### Watch between shots
 
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
+The galaxies turn independently, carrying their red star belts. The green planet turns slowly on the backglass. Current travels down the blue veins in the playfield and through the softly breathing central disc. The two stars behind the flippers light in turn while you wait to launch. Hit a slingshot to see its faint electrical pattern break into a flash. On the backglass, look for a glint crossing the title or a brief flare from the rocket exhaust.
 
-## Source
+![The ball among the upper bumpers, rails and mission lanes](docs/screenshots/upper-playfield.webp)
 
-* `pinball.exe` from `Windows XP` (SHA-1 `2A5B525E0F631BB6107639E2A69DF15986FB0D05`) and its public PDB
-* `CADET.EXE` 32bit version from `Full Tilt! Pinball` (SHA-1 `3F7B5699074B83FD713657CD94671F2156DBEDC4`)
+### Meditative mode
 
-## Tools used
+Open **Esc**, tick **Meditative**, then select **Play** to start a new game. Both outlane kickbacks rearm, fuel stays full, and nudges are gentler and rate-limited with no tilt penalty. A well-timed stroke at the tip of a flipper can reach an otherwise unreachable centre shot. Leave the flippers down or press too late and the ball can still drain. Switch between the two high-score tables with the mouse or the controller shoulders.
 
-`Ghidra`, `Ida`, `Visual Studio`
+## Sound and music
 
-## What was done
+All 60 original WAV effects are preserved. The mixer has **32 simultaneous effect voices**, up from eight, so a flipper, a bumper and a long mission cue can finish together even when the table gets busy. A stereo-linked peak limiter protects loud combinations while keeping individual hits at their recorded level.
 
-* All structures were populated, globals and locals named.
-* All subs were decompiled, C pseudo code was converted to compilable C++. Loose (namespace?) subs were assigned to classes.
+For music, the original score pairs synth bass, vibraphone, muted guitar and drums. **GeneralUser GS** plays that arrangement as a seamlessly looped stereo recording, keeping the note velocities, pitch bends and effects sends. **Original MIDI** plays the score through the available MIDI synthesizer. To compare them, open **Esc → Settings**, enable **Music** and change **Instrument bank**. New profiles start with table sounds on at **128/128**, music off, and GeneralUser GS selected at **64/128** for when you turn it on. [GeneralUser GS by S. Christian Collins](https://github.com/mrbumpy409/GeneralUser-GS)
 
-## Compiling
+## At the cabinet
 
-Project uses `C++11` and depends on `SDL2` libs.
+An English or Russian in-game menu opens with **Esc**. The dot-matrix score and mission displays support both languages, including Cyrillic. **F1** brings up a short guide at the table. Choose a proportional window size, cycle the presets or fill the display. Maximizing the window enters fullscreen. Switching away pauses the game. When a ball is in play, an optional countdown and a brief cue around the ball help you find it again.
 
-### On Windows
+| In-game menu | High scores |
+| --- | --- |
+| ![The English cabinet menu with Resume and the Meditative option](docs/screenshots/cabinet-menu.webp) | ![The high-score panel with Classic and Meditative tabs](docs/screenshots/high-scores.webp) |
 
-Download and unpack devel packages for `SDL2` and `SDL2_mixer`.\
-Set paths to them in `CMakeLists.txt`, see suggested placement in `/Libs`.\
-Compile with Visual Studio; tested with 2019.
+### Default controls
 
-### On Linux
+| Action | Keyboard or mouse | Controller |
+| --- | --- | --- |
+| Flip left / right | Left / right **Shift**, or left / right mouse button | **LB / RB** on Xbox, **L1 / R1** on PlayStation |
+| Pull and release the plunger | Hold and release **Space** or the middle mouse button | Hold and release **A / Cross**, or pull the **right stick** down and let it return |
+| Nudge left / right / up | **X / . / ↑**, or the side mouse buttons for left and right | **D-pad** or **left stick** in that direction |
+| Open the menu or go back | **Esc** | **Menu / Options** |
+| Open in-game help | **F1** | Choose **Help** in the menu |
+| Start a new game | **F2**, or **Space** after game over | Can be bound in Controls |
+| Pause or resume | **F3**, or **Space** to resume a manual pause with the menu closed | Can be bound in Controls |
+| Toggle fullscreen / cycle window sizes | **F4 / F7**. Double-clicking the backglass also toggles fullscreen. | Can be bound in Controls |
+| Toggle table sounds / music | **F5 / F6** | Can be bound in Controls |
+| Rebind controls | **F8** or **Esc → Controls** | Choose **Controls** in the menu |
 
-Install devel packages for `SDL2` and `SDL2_mixer`.\
-Compile with CMake; tested with GCC 10, Clang 11.\
-To cross-compile for Windows, install a 64-bit version of mingw and its `SDL2` and `SDL2_mixer` distributions, then use the `mingwcc.cmake` toolchain.
+Xbox controllers, PlayStation DualShock 4 and DualSense, and standard controllers exposed by Steam Input use SDL's game-controller mappings. Select an action and press the physical key, mouse button, trigger or controller button you want. Left and right modifiers have separate bindings. The analog plunger remembers the deepest pull before release. Analog nudging and analog launching can be switched independently.
 
-[![Packaging status](https://repology.org/badge/tiny-repos/spacecadetpinball.svg)](https://repology.org/project/spacecadetpinball/versions) 
+## Run or build on Windows x64
 
-Some distributions provide a package in their repository. You can use those for easier dependency management and updates.
+The repository contains the engine, remastered artwork masters and build recipes. Supply the original Windows game data from your own installation. The original executable, WAV effects, MIDI score and game DAT are distributed separately from this source tree.
 
-This project is available as Flatpak on [Flathub](https://flathub.org/apps/details/com.github.k4zmu2a.spacecadetpinball).
+1. Install Visual Studio 2022 with the Desktop development with C++ workload, the Windows SDK and CMake.
+2. Extract the Visual C++ development ZIPs for [SDL 2.32.10](https://github.com/libsdl-org/SDL/releases/tag/release-2.32.10) and [SDL_mixer 2.8.1](https://github.com/libsdl-org/SDL_mixer/releases/tag/release-2.8.1) into `deps`. The build script expects `deps/SDL2-2.32.10` and `deps/SDL2_mixer-2.8.1`.
+3. Run the following in PowerShell from the source root. Replace the example path with the folder containing your own `PINBALL.DAT`.
 
-### On macOS
-
-Install XCode (or at least Xcode Command Line Tools with `xcode-select --install`) and CMake.
-
-**HomeBrew**
-
-You can easily install the build artifact by using `brew`.
-
-```sh
-brew tap draftbrew/tap
-brew install --no-quarantine space-cadet-pinball
+```powershell
+.\BuildForWindows.ps1
+$original = 'D:\Games\Pinball'
+$data = New-Item -ItemType Directory -Force .\bin\Release\Data
+Get-ChildItem -LiteralPath $original -File | Where-Object Extension -In '.DAT','.MID','.WAV' | Copy-Item -Destination $data.FullName
 ```
 
-Be aware that the flag `--no-quarantime` will disable macOS's Gatekeeper during installation.
+**HD artwork.** If you have the 7.0.2 build, copy its `HD` folder beside the executable. To generate it yourself, follow the Python setup and weights download in [the artwork build notes](BUILD-HD.md), then run the command below in that Python environment. It builds the texture set from the original Windows DAT, the included art masters and the Real-ESRGAN weights.
 
-**Manual compilation:**
+```powershell
+python tools/art-v2/bake.py bin/Release/Data/PINBALL.DAT bin/Release/HD --weights realesr-general-x4v3.pth
+```
 
-* **Homebrew**: Install the `SDL2`, `SDL2_mixer` homebrew packages.
-* **MacPorts**: Install the `libSDL2`, `libSDL2_mixer` macports packages.
+**Music.** The original MIDI uses the score in `Data`. For GeneralUser GS, copy your existing `Music` folder beside the executable or render the loop locally from your MIDI with 64-bit Python, GeneralUser GS 2.0.3 and the FluidSynth 2.6.2 Windows libraries. The [music notes](tools/BONUS-MUSIC.md) identify the exact bank and synthesizer downloads.
 
-Compile with CMake. Ensure that `CMAKE_OSX_ARCHITECTURES` variable is set for either `x86_64` Apple Intel or `arm64` for Apple Silicon.
+```powershell
+python tools/render_bonus_music.py --midi bin/Release/Data/PINBALL.MID --sf2 'D:\MusicTools\GeneralUser-GS.sf2' --bin 'D:\MusicTools\fluidsynth\bin' --out bin/Release/Music/SpaceCadet-GS.ogg
+.\bin\Release\SpaceCadetHD.exe
+```
 
-Tested with: macOS Big Sur (Intel) with Xcode 13 & macOS Montery Beta (Apple Silicon) with Xcode 13.
+Scores, bindings and settings are stored in `%APPDATA%\SpaceCadetHD\imgui_pb.ini`. For implementation details, see the [physics notes](PHYSICS-HD7.md) and [mixer measurements](AUDIO-HD7.md).
 
-**Automated compilation:**
+## Where it comes from
 
-Run the `build-mac-app.sh` script from the root of the repository. The app will be available in a DMG file named `SpaceCadetPinball-<version>-mac.dmg`.
+The engine license covers its source code. Original game assets, title artwork and third-party projects retain their respective notices. The Real-ESRGAN license is included in `tools/Real-ESRGAN-LICENSE.txt`. Screenshots show the remaster running with the original game data.
 
-Tested with: macOS Ventura (Apple Silicon) with Xcode Command Line Tools 14 & macOS Big Sur on GitHub Runner (Intel) with XCode 13.
-
-## Plans
-
-* ~~Decompile original game~~
-* ~~Resizable window, scaled graphics~~
-* ~~Loader for high-res sprites from CADET.DAT~~
-* ~~Cross-platform port using SDL2, SDL2_mixer, ImGui~~
-* Full Tilt Cadet features
-* Localization support
-* Maybe: Support for the other two tables - Dragon and Pirate
-* Maybe: Game data editor
-
-## On 64-bit bug that killed the game
-
-I did not find it, decompiled game worked in x64 mode on the first try.\
-It was either lost in decompilation or introduced in x64 port/not present in x86 build.\
-Based on public description of the bug (no ball collision), I guess that the bug was in `TEdgeManager::TestGridBox`
+Space Cadet HD is a fork of k4zmu2a's **SpaceCadetPinball**, the reverse-engineered engine for *3D Pinball for Windows – Space Cadet*. Its reconstruction makes it possible to keep the original table logic and build the remaster around it. The source snapshot is `cb9b7b886244a27773f66b0b19fdc2998392565e`. The source tree preserves the upstream history and credits in `README-upstream.md` and the engine's MIT terms in `LICENSE`. [Upstream project](https://github.com/k4zmu2a/SpaceCadetPinball)

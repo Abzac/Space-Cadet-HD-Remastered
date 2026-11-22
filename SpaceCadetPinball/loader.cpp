@@ -336,7 +336,7 @@ float loader::play_sound(int soundIndex, TPinballComponent *soundSource, const c
 {
 	if (soundIndex <= 0)
 		return 0.0;
-	Sound::PlaySound(sound_list[soundIndex].WavePtr, pb::time_ticks, soundSource, info);
+	Sound::PlaySound(sound_list[soundIndex].WavePtr, soundSource, info);
 	return sound_list[soundIndex].Duration;
 }
 

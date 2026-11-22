@@ -7,9 +7,12 @@
 #include "pb.h"
 #include "score.h"
 #include "TPinballTable.h"
+#include "TBall.h"
+#include "TFlagSpinner.h"
 #include "winmain.h"
 #include "DebugOverlay.h"
 #include "proj.h"
+#include "HdRenderer.h"
 
 std::vector<render_sprite*> render::sprite_list, render::ball_list;
 zmap_header_type* render::background_zmap;
@@ -18,6 +21,9 @@ rectangle_type render::vscreen_rect;
 gdrv_bitmap8 *render::vscreen, *render::background_bitmap, *render::ball_bitmap[20];
 zmap_header_type* render::zscreen;
 SDL_Rect render::DestinationRect{};
+bool render::EnhancedGraphics = true;
+int render::HdAssetCount{};
+std::vector<EmissiveRegion> render::EmissiveRegions;
 
 render_sprite::render_sprite(VisualTypes visualType, gdrv_bitmap8* bmp, zmap_header_type* zMap,
 	int xPosition, int yPosition, rectangle_type* boundingRect)
@@ -114,6 +120,7 @@ void render::init(gdrv_bitmap8* bmp, int width, int height)
 		ballBmp = new gdrv_bitmap8(64, 64, false);
 
 	background_bitmap = bmp;
+	HdRenderer::Init(vscreen);
 	if (bmp)
 		gdrv::copy_bitmap(vscreen, width, height, 0, 0, bmp, 0, 0);
 	else
@@ -124,6 +131,7 @@ void render::init(gdrv_bitmap8* bmp, int width, int height)
 
 void render::uninit()
 {
+	HdRenderer::Shutdown();
 	delete vscreen;
 	delete zscreen;
 
@@ -145,10 +153,13 @@ void render::recreate_screen_texture()
 void render::update()
 {
 	unpaint_balls();
+	HdRenderer::AnimateDischarges(sprite_list);
 
 	// Clip dirty sprites with vScreen, clear clipping (dirty) rectangles
 	for (const auto sprite : sprite_list)
 	{
+		if (sprite->Spinner) sprite->Spinner->RefreshVisualPhase();
+		if (sprite->HdPlunger) HdRenderer::UpdatePlunger(*sprite);
 		if (!sprite->DirtyFlag)
 			continue;
 
@@ -156,7 +167,9 @@ void render::update()
 		switch (sprite->VisualType)
 		{
 		case VisualTypes::Sprite:
-			if (sprite->DirtyRectPrev.Width > 0)
+			if (sprite->Spinner || sprite->HdPlunger)
+				sprite->DirtyRect = sprite->BoundingRect;
+			else if (sprite->DirtyRectPrev.Width > 0)
 				maths::enclosing_box(sprite->DirtyRectPrev, sprite->BmpRect, sprite->DirtyRect);
 
 			if (maths::rectangle_clip(sprite->DirtyRect, vscreen_rect, &sprite->DirtyRect))
@@ -180,6 +193,7 @@ void render::update()
 			auto xPos = sprite->DirtyRect.XPosition;
 			auto height = sprite->DirtyRect.Height;
 			zdrv::fill(zscreen, width, height, xPos, yPos, 0xFFFF);
+			HdRenderer::ClearDepth(width, height, xPos, yPos);
 			if (background_bitmap)
 				gdrv::copy_bitmap(vscreen, width, height, xPos, yPos, background_bitmap, xPos, yPos);
 			else
@@ -234,6 +248,8 @@ void render::repaint(const render_sprite& sprite)
 	{
 		if (!refSprite->DeleteFlag && refSprite->Bmp)
 		{
+			if (refSprite->Spinner) refSprite->Spinner->PaintHd(sprite.DirtyRect);
+			if (refSprite->HdPlunger) HdRenderer::PaintPlunger(*refSprite, sprite.DirtyRect);
 			if (maths::rectangle_clip(refSprite->BmpRect, sprite.DirtyRect, &clipRect))
 				zdrv::paint(
 					clipRect.Width,
@@ -249,7 +265,8 @@ void render::repaint(const render_sprite& sprite)
 					clipRect.YPosition - refSprite->BmpRect.YPosition,
 					refSprite->ZMap,
 					clipRect.XPosition + refSprite->ZMapOffestY - refSprite->BmpRect.XPosition,
-					clipRect.YPosition + refSprite->ZMapOffestX - refSprite->BmpRect.YPosition);
+					clipRect.YPosition + refSprite->ZMapOffestX - refSprite->BmpRect.YPosition,
+					!refSprite->Spinner && !refSprite->HdPlunger);
 		}
 	}
 }
@@ -452,13 +469,69 @@ void render::SpriteViewer(bool* show)
 	ImGui::End();
 }
 
-void render::PresentVScreen()
+bool render::GetVisibleBallImage(const TBall& ball, SDL_FRect& image, SDL_FRect& fieldClip)
 {
-	vscreen->BlitToTexture();
+	const auto sprite = ball.RenderSprite;
+	if (!ball.ActiveFlag || !sprite || !sprite->Bmp || sprite->DirtyRect.Width <= 0 || !vscreen || !pb::MainTable)
+		return false;
+
+	float cx, cy, rx, ry;
+	if (EnhancedGraphics && HdAssetCount)
+	{
+		// The HD sphere pass has already tested every sample against the raised hardware.
+		if (!sprite->HdBallVisible) return false;
+		const auto center = proj::BallImage(ball.Position, ball.Radius, rx);
+		cx = center.X;
+		cy = center.Y;
+		ry = rx;
+	}
+	else
+	{
+		const auto& dirty = sprite->DirtyRect;
+		const auto& box = sprite->BmpRect;
+		const int right = std::min(dirty.XPosition + dirty.Width, pb::MainTable->Width);
+		bool visible = false;
+		for (int y = dirty.YPosition; !visible && y < dirty.YPosition + dirty.Height; ++y)
+			for (int x = dirty.XPosition; x < right; ++x)
+			{
+				const auto pixel = (y-box.YPosition) * sprite->Bmp->Stride + x-box.XPosition;
+				if (sprite->Bmp->BmpBufPtr1[pixel].Color && zscreen->ZPtr1[y*zscreen->Stride+x] > sprite->Depth)
+				{
+					visible = true;
+					break;
+				}
+			}
+		if (!visible) return false;
+		rx = box.Width * .5f;
+		ry = box.Height * .5f;
+		cx = box.XPosition + rx;
+		cy = box.YPosition + ry;
+	}
+	const float sx = float(DestinationRect.w) / vscreen->Width, sy = float(DestinationRect.h) / vscreen->Height;
+	const float x = DestinationRect.x + offset_x * fullscrn::ScaleX;
+	const float y = DestinationRect.y + offset_y * fullscrn::ScaleY;
+	image = {x + (cx-rx)*sx, y + (cy-ry)*sy, rx*2*sx, ry*2*sy};
+	const float left = std::max(float(DestinationRect.x), x), top = std::max(float(DestinationRect.y), y);
+	const float right = std::min(float(DestinationRect.x), x) + pb::MainTable->Width*sx;
+	const float bottom = std::min(float(DestinationRect.y), y) + DestinationRect.h;
+	fieldClip = {left, top, right-left, bottom-top};
+	return image.w > 0 && image.h > 0 && fieldClip.w > 0 && fieldClip.h > 0;
+}
+
+void render::PresentVScreen(float decorTime)
+{
+	EmissiveRegions.clear();
+	SDL_Texture* texture = EnhancedGraphics ? HdRenderer::Frame() : nullptr;
+	const int scale = texture ? HdRenderer::Scale : 1;
+	if (!texture)
+	{
+		vscreen->BlitToTexture();
+		texture = vscreen->Texture;
+	}
 
 	if (offset_x == 0 && offset_y == 0)
 	{
-		SDL_RenderCopy(winmain::Renderer, vscreen->Texture, nullptr, &DestinationRect);
+		SDL_RenderCopy(winmain::Renderer, texture, nullptr, &DestinationRect);
 	}
 	else
 	{
@@ -467,12 +540,12 @@ void render::PresentVScreen()
 		auto srcBoardRect = SDL_Rect
 		{
 			0, 0,
-			srcSeparationX, vscreen->Height
+			srcSeparationX * scale, vscreen->Height * scale
 		};
 		auto srcSidebarRect = SDL_Rect
 		{
-			srcSeparationX, 0,
-			vscreen->Width - srcSeparationX, vscreen->Height
+			srcSeparationX * scale, 0,
+			(vscreen->Width - srcSeparationX) * scale, vscreen->Height * scale
 		};
 
 #if SDL_VERSION_ATLEAST(2, 0, 10)
@@ -490,8 +563,8 @@ void render::PresentVScreen()
 			DestinationRect.w - dstSeparationX, static_cast<float>(DestinationRect.h)
 		};
 
-		SDL_RenderCopyF(winmain::Renderer, vscreen->Texture, &srcBoardRect, &dstBoardRect);
-		SDL_RenderCopyF(winmain::Renderer, vscreen->Texture, &srcSidebarRect, &dstSidebarRect);
+		SDL_RenderCopyF(winmain::Renderer, texture, &srcBoardRect, &dstBoardRect);
+		SDL_RenderCopyF(winmain::Renderer, texture, &srcSidebarRect, &dstSidebarRect);
 #else
 		// SDL_RenderCopy cannot express sub pixel offset.
 		// Vscreen shift is required for that.
@@ -514,11 +587,18 @@ void render::PresentVScreen()
 			DestinationRect.w - dstSeparationX, DestinationRect.h
 		};
 
-		SDL_RenderCopy(winmain::Renderer, vscreen->Texture, &srcBoardRect, &dstBoardRect);
-		SDL_RenderCopy(winmain::Renderer, vscreen->Texture, &srcSidebarRect, &dstSidebarRect);
+		SDL_RenderCopy(winmain::Renderer, texture, &srcBoardRect, &dstBoardRect);
+		SDL_RenderCopy(winmain::Renderer, texture, &srcSidebarRect, &dstSidebarRect);
 #endif
 	}
 
+	if (scale > 1 && pb::MainTable)
+	{
+		const SDL_FRect dest{
+			DestinationRect.x + offset_x * fullscrn::ScaleX, DestinationRect.y + offset_y * fullscrn::ScaleY,
+			static_cast<float>(DestinationRect.w), static_cast<float>(DestinationRect.h)};
+		HdRenderer::Effects(sprite_list, ball_list, *zscreen, pb::MainTable->Width, dest, decorTime);
+	}
 	if (options::Options.DebugOverlay)
 	{
 		DebugOverlay::DrawOverlay();

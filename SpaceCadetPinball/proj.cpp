@@ -114,3 +114,53 @@ uint16_t proj::NormalizeDepth(float depth)
 	}
 	return result;
 }
+
+float proj::DepthUnitsPerPixel(uint16_t depth)
+{
+	return fabsf(d_) > .001f ? (depth + zmin * zscaler) / fabsf(d_) : 1.0f;
+}
+
+vector2 proj::BallImage(const vector3& center, float radius, float& projectedRadius)
+{
+	const vector3 camera = matrix_vector_multiply(matrix, center);
+	const float scale = d_ / std::max(0.001f, camera.Z);
+	projectedRadius = std::abs(radius * scale);
+	return {camera.X * scale + centerx, camera.Y * scale + centery};
+}
+
+vector3 proj::CameraPoint(const vector3& world)
+{
+	return matrix_vector_multiply(matrix, world);
+}
+
+vector3 proj::CameraDirection(const vector3& dir)
+{
+	return {matrix.Row0.X * dir.X + matrix.Row0.Y * dir.Y + matrix.Row0.Z * dir.Z,
+			matrix.Row1.X * dir.X + matrix.Row1.Y * dir.Y + matrix.Row1.Z * dir.Z,
+			matrix.Row2.X * dir.X + matrix.Row2.Y * dir.Y + matrix.Row2.Z * dir.Z};
+}
+
+vector3 proj::ViewRay(float x, float y)
+{
+	const float u = (x - centerx) / d_, v = (y - centery) / d_;
+	const float unit = 1.f / sqrtf(1.f + u * u + v * v);
+	return {u * unit, v * unit, unit};
+}
+
+vector2 proj::ImagePoint(const vector3& camera)
+{
+	const float scale = d_ / camera.Z;
+	return {centerx + camera.X * scale, centery + camera.Y * scale};
+}
+
+vector3 proj::WorldDirection(const vector3& dir)
+{
+	return {matrix.Row0.X * dir.X + matrix.Row1.X * dir.Y + matrix.Row2.X * dir.Z,
+			matrix.Row0.Y * dir.X + matrix.Row1.Y * dir.Y + matrix.Row2.Y * dir.Z,
+			matrix.Row0.Z * dir.X + matrix.Row1.Z * dir.Y + matrix.Row2.Z * dir.Z};
+}
+
+float proj::DepthDistance(uint16_t packed)
+{
+	return zmin + packed / zscaler;
+}

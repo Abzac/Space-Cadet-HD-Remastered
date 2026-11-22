@@ -81,13 +81,26 @@ public:
 	[[ noreturn ]] static void memalloc_failure();
 	static int ProcessWindowMessages();
 	static void a_dialog();
-	static void end_pause();
+	static bool PauseForMenu();
+	static void RequestResume();
+	static void UpdateResumeCountdown(Uint64 now);
+	static int ResumeStage();
+	static bool ResumePending();
+	static void ResumeFramePresented(Uint64 now);
+	static bool CanAdvanceGame();
 	static void new_game();
 	static void pause(bool toggle = true);
 	static void Restart();
+	static void SetWindowSize(int width, int height=0);
+	static std::vector<int> WindowSizes();
+	static void UpdateWindowTitle();
+	static void CycleWindowSize();
+	static void ToggleCabinetMenu();
+	static bool CabinetMenuOpen();
 	static void UpdateFrameRate();
 	static void HandleGameBinding(GameBindings binding, bool shortcut);
 private:
+	static void FinishPause();
 	static int return_value;
 	static int mouse_down, last_mouse_x, last_mouse_y;
 	static bool no_time_loss, activated, bQuit, has_focus, DispGRhistory, DispFrameRate;
@@ -109,6 +122,8 @@ private:
 	static int CursorIdleCounter;
 
 	static void RenderUi();
+	static bool BackgroundArtVisible();
+	static void RenderFrame(float decorTime);
 	static void RenderFrameTimeDialog();
 	static void HybridSleep(DurationMs seconds);
 	static void MainLoop();

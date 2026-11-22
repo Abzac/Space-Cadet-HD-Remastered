@@ -3,43 +3,47 @@
 
 #include "options.h"
 #include "pb.h"
-#include "score.h"
-#include "translations.h"
-
-bool high_score::dlg_enter_name;
-bool high_score::ShowDialog = false;
-high_score_entry high_score::DlgData;
+#include "GameMenu.h"
 std::vector<high_score_entry> high_score::ScoreQueue;
 high_score_struct high_score::highscore_table[5];
+static bool fairScores;
+
+static uint32_t checksumPart(const high_score_struct& entry)
+{
+	uint32_t sum = static_cast<uint32_t>(entry.Score);
+	for (const char* p = entry.Name; *p; ++p)
+		sum += static_cast<int8_t>(*p); // Retain the Windows format for UTF-8 names.
+	return sum;
+}
+
+void high_score::view(bool meditative, high_score_struct (&entries)[5])
+{
+	char Buffer[20];
+	uint32_t checkSum = 0;
+	for (auto position = 0; position < 5; ++position)
+	{
+		auto& tablePtr = entries[position];
+
+		snprintf(Buffer, sizeof Buffer, "%s%d.Name", meditative ? "Fair." : "", position);
+		auto name = options::GetSetting(Buffer, "");
+		SDL_utf8strlcpy(tablePtr.Name, name.c_str(), sizeof tablePtr.Name);
+
+		snprintf(Buffer, sizeof Buffer, "%s%d.Score", meditative ? "Fair." : "", position);
+		tablePtr.Score = options::get_int(Buffer, -999);
+
+		checkSum += checksumPart(tablePtr);
+	}
+
+	auto verification = options::get_int(meditative ? "Fair.Verification" : "Verification", 7);
+	if (checkSum != static_cast<uint32_t>(verification))
+		for (auto& row : entries) row = {{0}, -999};
+}
 
 int high_score::read()
 {
-	char Buffer[20];
-
-	int checkSum = 0;
-	clear_table();
-	for (auto position = 0; position < 5; ++position)
-	{
-		auto& tablePtr = highscore_table[position];
-
-		snprintf(Buffer, sizeof Buffer, "%d", position);
-		strcat(Buffer, ".Name");
-		auto name = options::GetSetting(Buffer, "");
-		strncpy(tablePtr.Name, name.c_str(), sizeof tablePtr.Name);
-
-		snprintf(Buffer, sizeof Buffer, "%d", position);
-		strcat(Buffer, ".Score");
-		tablePtr.Score = options::get_int(Buffer, tablePtr.Score);
-
-		for (int i = static_cast<int>(strlen(tablePtr.Name)); --i >= 0; checkSum += tablePtr.Name[i])
-		{
-		}
-		checkSum += tablePtr.Score;
-	}
-
-	auto verification = options::get_int("Verification", 7);
-	if (checkSum != verification)
-		clear_table();
+	fairScores = pb::FairMode;
+	ScoreQueue.clear();
+	view(fairScores, highscore_table);
 	return 0;
 }
 
@@ -47,26 +51,21 @@ int high_score::write()
 {
 	char Buffer[20];
 
-	int checkSum = 0;
+	uint32_t checkSum = 0;
 	for (auto position = 0; position < 5; ++position)
 	{
 		auto& tablePtr = highscore_table[position];
 
-		snprintf(Buffer, sizeof Buffer, "%d", position);
-		strcat(Buffer, ".Name");
+		snprintf(Buffer, sizeof Buffer, "%s%d.Name", fairScores ? "Fair." : "", position);
 		options::SetSetting(Buffer, tablePtr.Name);
 
-		snprintf(Buffer, sizeof Buffer, "%d", position);
-		strcat(Buffer, ".Score");
+		snprintf(Buffer, sizeof Buffer, "%s%d.Score", fairScores ? "Fair." : "", position);
 		options::set_int(Buffer, tablePtr.Score);
 
-		for (int i = static_cast<int>(strlen(tablePtr.Name)); --i >= 0; checkSum += tablePtr.Name[i])
-		{
-		}
-		checkSum += tablePtr.Score;
+		checkSum += checksumPart(tablePtr);
 	}
 
-	options::set_int("Verification", checkSum);
+	options::set_int(fairScores ? "Fair.Verification" : "Verification", static_cast<int32_t>(checkSum));
 	return 0;
 }
 
@@ -92,147 +91,70 @@ int high_score::get_score_position(int score)
 	return -1;
 }
 
-void high_score::place_new_score_into(high_score_entry data)
-{
-	if (data.Position >= 0 && data.Position < 5)
-	{
-		for (int i = 4; i > data.Position; i--)
-		{
-			highscore_table[i] = highscore_table[i - 1];
-		}
-
-		data.Entry.Name[31] = 0;
-		highscore_table[data.Position] = data.Entry;
-	}
-}
-
 void high_score::show_high_score_dialog()
 {
-	ShowDialog = true;
+	GameMenu::Scores();
+}
+
+void high_score::persist()
+{
+	write();
+	if (const char* path = ImGui::GetIO().IniFilename)
+		ImGui::SaveIniSettingsToDisk(path);
 }
 
 void high_score::show_and_set_high_score_dialog(high_score_entry score)
 {
-	ScoreQueue.insert(ScoreQueue.begin(), score);
-	ShowDialog = true;
+	if (score.Position < 0 || score.Position >= 5)
+		score.Position = get_score_position(score.Entry.Score);
+	if (score.Position < 0) return;
+
+	for (auto& pending : ScoreQueue)
+		if (pending.Position >= score.Position) ++pending.Position;
+	ScoreQueue.erase(std::remove_if(ScoreQueue.begin(), ScoreQueue.end(),
+		[](const high_score_entry& entry) { return entry.Position >= 5; }), ScoreQueue.end());
+	for (int i = 4; i > score.Position; --i)
+		highscore_table[i] = highscore_table[i - 1];
+	score.Entry.Name[sizeof(score.Entry.Name) - 1] = 0;
+	highscore_table[score.Position] = score.Entry;
+	ScoreQueue.push_back(score);
+	persist();
 }
 
-void high_score::RenderHighScoreDialog()
+high_score_entry* high_score::pending()
 {
-	if (ShowDialog == true)
+	return ScoreQueue.empty() ? nullptr : &ScoreQueue.front();
+}
+
+void high_score::finish_name(bool save)
+{
+	auto record = pending();
+	if (!record) return;
+	if (save && record->Entry.Name[0])
 	{
-		ShowDialog = false;
-		if (!ImGui::IsPopupOpen(pb::get_rc_string(Msg::HIGHSCORES_Caption)))
-		{
-			dlg_enter_name = false;
-			while (!ScoreQueue.empty())
-			{
-				DlgData = ScoreQueue.back();
-				ScoreQueue.pop_back();
-				if (DlgData.Position < 0 || DlgData.Position > 4)
-				{
-					DlgData.Position = get_score_position(DlgData.Entry.Score);
-				}
-
-				if (DlgData.Position != -1)
-				{
-					dlg_enter_name = true;
-					break;
-				}
-			}
-
-			ImGui::OpenPopup(pb::get_rc_string(Msg::HIGHSCORES_Caption));
-		}
+		highscore_table[record->Position] = record->Entry;
+		persist();
 	}
+	ScoreQueue.erase(ScoreQueue.begin());
+}
 
-	bool unused_open = true, textBoxSubmit = false;
-	if (ImGui::BeginPopupModal(pb::get_rc_string(Msg::HIGHSCORES_Caption), &unused_open, ImGuiWindowFlags_AlwaysAutoResize))
+void high_score::erase_records(bool meditative)
+{
+	if (meditative == fairScores)
 	{
-		if (ImGui::BeginTable("table1", 3, ImGuiTableFlags_Borders))
-		{
-			char buf[36];
-			ImGui::TableSetupColumn(pb::get_rc_string(Msg::HIGHSCORES_Rank));
-			ImGui::TableSetupColumn(pb::get_rc_string(Msg::HIGHSCORES_Name));
-			ImGui::TableSetupColumn(pb::get_rc_string(Msg::HIGHSCORES_Score));
-			ImGui::TableHeadersRow();
-
-			for (int offset = 0, row = 0; row < 5; row++)
-			{
-				ImGui::TableNextRow();
-				ImGui::TableNextColumn();
-				snprintf(buf, sizeof buf, "%d", row + 1);
-				ImGui::TextUnformatted(buf);
-
-				auto currentRow = &highscore_table[row + offset];
-				auto score = currentRow->Score;
-				ImGui::TableNextColumn();
-				if (dlg_enter_name && DlgData.Position == row)
-				{
-					offset = -1;
-					score = DlgData.Entry.Score;
-					ImGui::PushItemWidth(200);
-
-					if (ImGui::IsWindowAppearing())
-					{
-						ImGui::SetKeyboardFocusHere(0);
-					}
-					if (ImGui::InputText("", DlgData.Entry.Name, IM_ARRAYSIZE(DlgData.Entry.Name),
-						ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll))
-					{
-						textBoxSubmit = true;
-					}
-				}
-				else
-				{
-					ImGui::TextUnformatted(currentRow->Name);
-				}
-
-				ImGui::TableNextColumn();
-				score::string_format(score, buf);
-				ImGui::TextUnformatted(buf);
-			}
-			ImGui::EndTable();
-		}
-
-		if (ImGui::Button(pb::get_rc_string(Msg::GenericOk)) || textBoxSubmit)
-		{
-			if (dlg_enter_name)
-			{
-				place_new_score_into(DlgData);
-			}
-			ImGui::CloseCurrentPopup();
-		}
-
-		ImGui::SameLine();
-		if (ImGui::Button(pb::get_rc_string(Msg::GenericCancel)))
-			ImGui::CloseCurrentPopup();
-
-		ImGui::SameLine();
-		if (ImGui::Button(pb::get_rc_string(Msg::HIGHSCORES_Clear)))
-			ImGui::OpenPopup("Confirm");
-		if (ImGui::BeginPopupModal("Confirm", nullptr, ImGuiWindowFlags_MenuBar))
-		{
-			ImGui::TextUnformatted(pb::get_rc_string(Msg::STRING141));
-			if (ImGui::Button(pb::get_rc_string(Msg::GenericOk), ImVec2(120, 0)))
-			{
-				clear_table();
-				ImGui::CloseCurrentPopup();
-			}
-			ImGui::SetItemDefaultFocus();
-			ImGui::SameLine();
-			if (ImGui::Button(pb::get_rc_string(Msg::GenericCancel), ImVec2(120, 0)))
-			{
-				ImGui::CloseCurrentPopup();
-			}
-			ImGui::EndPopup();
-		}
-
-		ImGui::EndPopup();
-
-		// Reenter dialog for the next score in the queue
-		if (!ImGui::IsPopupOpen(pb::get_rc_string(Msg::HIGHSCORES_Caption)) && !ScoreQueue.empty())
-		{
-			ShowDialog = true;
-		}
+		ScoreQueue.clear();
+		clear_table();
+		persist();
+		return;
 	}
+	// Clearing the other board keeps the active table and any names in progress.
+	const char* prefix = meditative ? "Fair." : "";
+	for (int row = 0; row < 5; ++row)
+	{
+		const auto key = prefix + std::to_string(row);
+		options::SetSetting(key + ".Name", "");
+		options::SetSetting(key + ".Score", "-999");
+	}
+	options::set_int(meditative ? "Fair.Verification" : "Verification", -999 * 5);
+	if (const char* path = ImGui::GetIO().IniFilename) ImGui::SaveIniSettingsToDisk(path);
 }

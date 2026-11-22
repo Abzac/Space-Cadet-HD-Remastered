@@ -120,7 +120,7 @@ public:
 	static vector2 vector_mul(const vector2& vec1, float val);
 	static float basic_collision(TBall* ball, vector2* nextPosition, vector2* direction, float elasticity,
 	                             float smoothness,
-	                             float threshold, float boost);
+	                             float threshold, float boost, float surfaceTangentSpeed = 0.f, float grip = .08f);
 	static float Distance_Squared(const vector2& vec1, const vector2& vec2);
 	static float DotProduct(const vector2& vec1, const vector2& vec2);
 	static float Distance(const vector2& vec1, const vector2& vec2);

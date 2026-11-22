@@ -1,1 +1,24 @@
 ICON_1 ICON "Icon_1.ico"
+
+1 VERSIONINFO
+ FILEVERSION 7,0,2,0
+ PRODUCTVERSION 7,0,2,0
+ FILEOS 0x40004
+ FILETYPE 0x1
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "FileDescription", "Space Cadet HD\0"
+            VALUE "FileVersion", "7.0.2\0"
+            VALUE "OriginalFilename", "SpaceCadetHD.exe\0"
+            VALUE "ProductName", "Space Cadet HD\0"
+            VALUE "ProductVersion", "7.0.2\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END

@@ -487,6 +487,8 @@ static void ImGui_ImplSDL2_UpdateMouseCursor()
     }
 }
 
+extern SDL_GameController* CabinetNavigationController();
+
 static void ImGui_ImplSDL2_UpdateGamepads()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -495,11 +497,14 @@ static void ImGui_ImplSDL2_UpdateGamepads()
 
     // Get gamepad
     io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
-    SDL_GameController* game_controller = nullptr;
-    if (SDL_NumJoysticks() > 0 && SDL_IsGameController(0))
-        game_controller = SDL_GameControllerOpen(0);
+    SDL_GameController* game_controller = CabinetNavigationController();
     if (!game_controller)
+    {
+        // Releases also matter while capturing a binding or unplugging a pad.
+        for (int key = ImGuiKey_GamepadStart; key <= ImGuiKey_GamepadRStickDown; ++key)
+            io.AddKeyEvent(static_cast<ImGuiKey>(key), false);
         return;
+    }
     io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
 
     // Update gamepad inputs
@@ -535,7 +540,7 @@ static void ImGui_ImplSDL2_UpdateGamepads()
     #undef MAP_ANALOG
 }
 
-void ImGui_ImplSDL2_NewFrame()
+void ImGui_ImplSDL2_NewFrame(bool updateInput)
 {
     ImGui_ImplSDL2_Data* bd = ImGui_ImplSDL2_GetBackendData();
     IM_ASSERT(bd != nullptr && "Did you call ImGui_ImplSDL2_Init()?");
@@ -567,6 +572,8 @@ void ImGui_ImplSDL2_NewFrame()
         bd->PendingMouseLeaveFrame = 0;
     }
 
+    // An unfocused, visible cabinet still repaints its artwork.
+    if (!updateInput) return;
     ImGui_ImplSDL2_UpdateMouseData();
     ImGui_ImplSDL2_UpdateMouseCursor();
 

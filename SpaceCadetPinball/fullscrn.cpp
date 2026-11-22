@@ -36,30 +36,32 @@ void fullscrn::shutdown()
 
 int fullscrn::set_screen_mode(int isFullscreen)
 {
-	int result = isFullscreen;
-	if (isFullscreen == screen_mode)
-		return result;
-	screen_mode = isFullscreen;
-	if (isFullscreen)
+	if (isFullscreen != screen_mode)
 	{
-		enableFullscreen();
-		result = 1;
+		if (isFullscreen) enableFullscreen();
+		else disableFullscreen();
+		screen_mode = display_changed;
+		window_size_changed();
 	}
-	else
-	{
-		disableFullscreen();
-		result = 1;
-	}
-	return result;
+	return screen_mode == isFullscreen;
 }
 
 int fullscrn::enableFullscreen()
 {
 	if (!display_changed)
 	{
-		if (SDL_SetWindowFullscreen(winmain::MainWindow, SDL_WINDOW_FULLSCREEN_DESKTOP) == 0)
+		auto window = winmain::MainWindow;
+		// SDL restores the placement it sees on entry. Capture the player's
+		// ordinary window, including when Windows has just maximized it.
+		if (SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED)
+			SDL_RestoreWindow(window);
+		int width, height;
+		SDL_GetWindowSize(window, &width, &height);
+		if (SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP) == 0)
 		{
 			display_changed = 1;
+			options::Options.WindowWidth = width;
+			options::Options.WindowHeight = height;
 			return 1;
 		}
 	}

@@ -3,6 +3,7 @@
 
 
 #include "pb.h"
+#include "TBall.h"
 #include "TLine.h"
 #include "TPinballTable.h"
 #include "TTableLayer.h"
@@ -120,6 +121,7 @@ float TFlipperEdge::FindCollisionDistance(const ray_type& ray)
 
 void TFlipperEdge::EdgeCollision(TBall* ball, float distance)
 {
+	if (pb::FairMode) ball->HadFlipperOpportunity = true;
 	if (FlipperFlag == MessageCode::TFlipperNull)
 	{
 		maths::basic_collision(
@@ -129,7 +131,7 @@ void TFlipperEdge::EdgeCollision(TBall* ball, float distance)
 			Elasticity,
 			Smoothness,
 			1e9f,
-			0);
+			0, 0.f, .22f);
 		return;
 	}
 
@@ -161,6 +163,8 @@ void TFlipperEdge::EdgeCollision(TBall* ball, float distance)
 	auto dx = NextBallPosition.X - RotOrigin.X;
 	auto dy = NextBallPosition.Y - RotOrigin.Y;
 	auto distanceSq = dy * dy + dx * dx;
+	// Tangential speed of the rubber where it touches the sphere.
+	const float contactSpeed = MoveSpeed * (dx*CollisionDirection.X + dy*CollisionDirection.Y - ball->Radius);
 	if (frontCollision)
 	{
 		float boost = 0;
@@ -180,14 +184,15 @@ void TFlipperEdge::EdgeCollision(TBall* ball, float distance)
 			Elasticity,
 			Smoothness,
 			threshold,
-			boost);
+			boost, contactSpeed, .22f);
 	}
 	else
 	{
 		auto elasticity = Elasticity;
 		if (circlebase.RadiusSq * 1.01f < distanceSq)
 			elasticity = (1.0f - std::sqrt(distanceSq / DistanceDivSq)) * Elasticity;
-		maths::basic_collision(ball, &NextBallPosition, &CollisionDirection, elasticity, Smoothness, 1e9f, 0.0);
+		maths::basic_collision(ball, &NextBallPosition, &CollisionDirection, elasticity, Smoothness,
+			1e9f, 0.f, contactSpeed, .22f);
 	}
 }
 

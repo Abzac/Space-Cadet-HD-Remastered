@@ -110,6 +110,8 @@ void TBumper::Collision(TBall* ball, vector2* nextPosition, vector2* direction, 
 void TBumper::TimerExpired(int timerId, void* caller)
 {
 	auto bump = static_cast<TBumper*>(caller);
+	if (bump->RenderSprite)
+		bump->RenderSprite->Emissive = false;
 	bump->SpriteSet(bump->BmpIndex * 2);
 	bump->Timer = 0;
 	bump->Threshold = bump->OriginalThreshold;
@@ -117,6 +119,8 @@ void TBumper::TimerExpired(int timerId, void* caller)
 
 void TBumper::Fire()
 {
+	if (RenderSprite)
+		RenderSprite->Emissive = true;
 	SpriteSet(2 * BmpIndex + 1);
 	Timer = timer::set(TimerTime, this, TimerExpired);
 	Threshold = 1000000000.0;

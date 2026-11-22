@@ -101,6 +101,7 @@ void TKickout::Collision(TBall* ball, vector2* nextPosition, vector2* direction,
 		Threshold = 1000000000.0;
 		BallCaputeredFlag = 1;
 		ball->CollisionComp = this;
+		ball->AngularVelocity = {};
 		ball->Position.X = Circle.Center.X;
 		ball->Position.Y = Circle.Center.Y;
 		OriginalBallZ = ball->Position.Z;

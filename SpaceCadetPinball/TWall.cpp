@@ -3,6 +3,7 @@
 
 
 #include "control.h"
+#include "HdRenderer.h"
 #include "render.h"
 #include "timer.h"
 
@@ -29,6 +30,7 @@ void TWall::Collision(TBall* ball, vector2* nextPosition, vector2* direction, fl
 		if (ListBitmap)
 		{
 			SpriteSet(0);
+			if (RenderSprite) HdRenderer::WallContact(RenderSprite->Bmp);
 			Timer = timer::set(0.1f, this, TimerExpired);
 		}
 		control::handler(MessageCode::ControlCollision, this);

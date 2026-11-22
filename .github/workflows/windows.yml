@@ -1,0 +1,25 @@
+name: Windows x64 build
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned SDL development libraries
+        shell: pwsh
+        run: |
+          $packages = @(
+            @{ Url='https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/SDL2-devel-2.32.10-VC.zip'; Hash='AF347939395A58B365846AAEA27391E69F9EC9D4DD650D6AC40802159B418A6E' }
+            @{ Url='https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.8.1/SDL2_mixer-devel-2.8.1-VC.zip'; Hash='12DC2BB724AFAF19BCC23FDD7E6FCDCF40274EDF13B8C6EC3723089A72537832' }
+          )
+          foreach ($p in $packages) {
+            $zip = Join-Path $env:RUNNER_TEMP ([IO.Path]::GetFileName($p.Url))
+            Invoke-WebRequest $p.Url -OutFile $zip
+            if ((Get-FileHash $zip).Hash -ne $p.Hash) { throw "Checksum mismatch for $zip" }
+            Expand-Archive -LiteralPath $zip -DestinationPath deps
+          }
+      - name: Compile release
+        shell: pwsh
+        run: ./BuildForWindows.ps1

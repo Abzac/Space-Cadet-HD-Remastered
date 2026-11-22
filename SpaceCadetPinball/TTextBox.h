@@ -2,6 +2,7 @@
 #include "score.h"
 #include "TPinballComponent.h"
 #include "TTextBoxMessage.h"
+#include "CabinetDisplay.h"
 
 class TTextBox :
 	public TPinballComponent
@@ -21,10 +22,11 @@ public:
 	~TTextBox() override;
 	int Message(MessageCode code, float value) override;
 	void Clear(bool lowPriorityOnly = false);
-	void Display(const char* text, float time, bool lowPriority = false);
+	void Display(const CabinetText& text, float time, bool lowPriority = false);
 	void DrawImGui();
 
 private:
+    CabinetDisplay displayPanel;
 	struct LayoutResult
 	{
 		char *Start, *End;

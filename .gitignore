@@ -300,3 +300,14 @@ _deps
 build.ninja
 # Build directory
 /build
+/deps/
+/Data/
+/HD/
+/Music/
+/Original/
+/Recovery/
+*.pth
+*.sf2
+*.zip
+imgui_pb.ini
+.venv/

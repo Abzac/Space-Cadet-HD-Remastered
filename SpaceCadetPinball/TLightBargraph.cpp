@@ -4,6 +4,7 @@
 
 #include "control.h"
 #include "loader.h"
+#include "pb.h"
 #include "timer.h"
 #include "TPinballTable.h"
 
@@ -54,7 +55,8 @@ int TLightBargraph::Message(MessageCode code, float value)
 				TLightGroup::Message(MessageCode::TLightGroupToggleSplitIndex, static_cast<float>(timeIndex / 2));
 				if (!(timeIndex & 1))
 					TLightGroup::Message(MessageCode::TLightGroupStartFlasher, 0.0);
-				if (TimerTimeArray)
+				const bool steadyFuel = pb::FairMode && GroupName && !std::strcmp(GroupName, "fuel_bargraph");
+				if (TimerTimeArray && !steadyFuel)
 					TimerBargraph = timer::set(TimerTimeArray[timeIndex], this, BargraphTimerExpired);
 				TimeIndex = timeIndex;
 			}

@@ -10,6 +10,8 @@
 
 TLight::TLight(TPinballTable* table, int groupIndex) : TPinballComponent(table, groupIndex, true)
 {
+	if (RenderSprite)
+		RenderSprite->Emissive = true;
 	TimeoutTimer = 0;
 	FlasherOnFlag = false;
 	UndoOverrideTimer = 0;

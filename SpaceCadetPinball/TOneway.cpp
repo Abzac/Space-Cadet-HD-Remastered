@@ -44,6 +44,8 @@ void TOneway::Collision(TBall* ball, vector2* nextPosition, vector2* direction, 
 {
 	if (edge == Line)
 	{
+		// A ball can also be nudged across a chute gate without a plunger strike.
+		ball->AwaitingPlungerStrike = false;
 		ball->not_again(edge);
 		ball->Position.X = nextPosition->X;
 		ball->Position.Y = nextPosition->Y;

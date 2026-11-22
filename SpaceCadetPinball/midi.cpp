@@ -3,10 +3,12 @@
 
 
 #include "pb.h"
+#include "options.h"
 
 
 std::vector<Mix_Music*> midi::LoadedTracks{};
 Mix_Music* midi::track1, * midi::track2, * midi::track3;
+Mix_Music* midi::generalUserTheme{};
 MidiTracks midi::active_track, midi::NextTrack;
 int midi::Volume = MIX_MAX_VOLUME;
 bool midi::IsPlaying = false, midi::MixOpen = false;
@@ -84,9 +86,20 @@ int midi::music_init(bool mixOpen, int volume)
 	{
 		// 3DPB has only one music track. PINBALL2.MID is a bitmap font, in the same format as PB_MSGFT.bin
 		track1 = load_track("PINBALL");
+		if (MixOpen && !pb::quickFlag)
+		{
+			if (auto base = SDL_GetBasePath())
+			{
+				const auto path = std::string(base) + "Music/SpaceCadet-GS.ogg";
+				SDL_free(base);
+				generalUserTheme = Mix_LoadMUS(path.c_str());
+				if (generalUserTheme)
+					LoadedTracks.push_back(generalUserTheme);
+			}
+		}
 	}
 
-	return track1 != nullptr;
+	return track1 || generalUserTheme;
 }
 
 void midi::music_shutdown()
@@ -99,6 +112,19 @@ void midi::music_shutdown()
 	}
 	active_track = MidiTracks::None;
 	LoadedTracks.clear();
+	track1 = track2 = track3 = generalUserTheme = nullptr;
+}
+
+bool midi::HasInstrumentChoice()
+{
+	return track1 && generalUserTheme;
+}
+
+void midi::SelectGeneralUser(bool enabled)
+{
+	options::Options.GeneralUserMusic = enabled;
+	if (IsPlaying && active_track == MidiTracks::Track1)
+		play_track(active_track, true);
 }
 
 void midi::SetVolume(int volume)
@@ -221,7 +247,7 @@ Mix_Music* midi::TrackToMidi(MidiTracks track)
 		midi = nullptr;
 		break;
 	case MidiTracks::Track1:
-		midi = track1;
+		midi = generalUserTheme && (options::Options.GeneralUserMusic || !track1) ? generalUserTheme : track1;
 		break;
 	case MidiTracks::Track2:
 		midi = track2;

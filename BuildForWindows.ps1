@@ -1,20 +1,13 @@
-#Run this script from Developer Command Prompt for VS *
-$artefacts = ".\bin\Release\SpaceCadetPinball.exe", ".\bin\Release\SDL2.dll", ".\bin\Release\SDL2_mixer.dll"
+param(
+    [string]$SdlRoot = (Join-Path $PSScriptRoot 'deps/SDL2-2.32.10'),
+    [string]$MixerRoot = (Join-Path $PSScriptRoot 'deps/SDL2_mixer-2.8.1')
+)
 
-#X86 build
-Remove-Item -Path .\build\CMakeCache.txt -ErrorAction SilentlyContinue
-cmake -S . -B build -A Win32 -DCMAKE_WIN32_EXECUTABLE:BOOL=1
-cmake --build build --config Release
-Compress-Archive -Path $artefacts -DestinationPath ".\bin\SpaceCadetPinballx86Win.zip" -Force
-
-#X64 build
-Remove-Item -Path .\build\CMakeCache.txt
-cmake -S . -B build -A x64 -DCMAKE_WIN32_EXECUTABLE:BOOL=1
-cmake --build build --config Release
-Compress-Archive -Path $artefacts -DestinationPath ".\bin\SpaceCadetPinballx64Win.zip" -Force
-
-#86 XP build, requires special XP MSVC toolset
-Remove-Item -Path .\build\CMakeCache.txt
-cmake -S . -B build -A Win32 -DCMAKE_WIN32_EXECUTABLE:BOOL=1 -T v141_xp
-cmake --build build --config Release
-Compress-Archive -Path $artefacts -DestinationPath ".\bin\SpaceCadetPinballx86WinXP.zip" -Force
+$ErrorActionPreference = 'Stop'
+$build = Join-Path $PSScriptRoot 'build'
+$sdl = (Resolve-Path -LiteralPath $SdlRoot).Path
+$mixer = (Resolve-Path -LiteralPath $MixerRoot).Path
+cmake -S $PSScriptRoot -B $build -G "Visual Studio 17 2022" -A x64 "-DSDL2_PATH=$sdl" "-DSDL2_MIXER_PATH=$mixer" -DCMAKE_WIN32_EXECUTABLE:BOOL=ON
+if ($LASTEXITCODE) { exit $LASTEXITCODE }
+cmake --build $build --config Release --parallel
+exit $LASTEXITCODE

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "zdrv.h"
+#include "HdRenderer.h"
 #include "winmain.h"
 
 
@@ -45,7 +46,7 @@ void zdrv::fill(zmap_header_type* zmap, int width, int height, int xOff, int yOf
 
 void zdrv::paint(int width, int height, gdrv_bitmap8* dstBmp, int dstBmpXOff, int dstBmpYOff, zmap_header_type* dstZMap,
                  int dstZMapXOff, int dstZMapYOff, gdrv_bitmap8* srcBmp, int srcBmpXOff, int srcBmpYOff,
-                 zmap_header_type* srcZMap, int srcZMapXOff, int srcZMapYOff)
+                 zmap_header_type* srcZMap, int srcZMapXOff, int srcZMapYOff, bool drawHd)
 {
 	assertm(srcBmp->BitmapType != BitmapTypes::Spliced, "Wrong bmp type");
 
@@ -53,6 +54,9 @@ void zdrv::paint(int width, int height, gdrv_bitmap8* dstBmp, int dstBmpXOff, in
 	auto dstPtr = &dstBmp->BmpBufPtr1[dstBmp->Stride * dstBmpYOff + dstBmpXOff];
 	auto srcPtrZ = &srcZMap->ZPtr1[srcZMap->Stride * srcZMapYOff + srcZMapXOff];
 	auto dstPtrZ = &dstZMap->ZPtr1[dstZMap->Stride * dstZMapYOff + dstZMapXOff];
+	if (drawHd)
+		HdRenderer::Paint(dstBmp, width, height, dstBmpXOff, dstBmpYOff, srcBmp, srcBmpXOff, srcBmpYOff,
+		                  srcPtrZ, srcZMap->Stride);
 
 	for (int y = height; y > 0; y--)
 	{

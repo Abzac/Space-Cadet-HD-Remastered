@@ -3,6 +3,7 @@
 
 
 #include "fullscrn.h"
+#include "HdRenderer.h"
 #include "loader.h"
 #include "maths.h"
 #include "pb.h"
@@ -88,6 +89,86 @@ void TBall::Repaint()
 	}
 
 	SpriteSetBall(index, pos2D, zDepth);
+	HdRenderer::TrackBall(RenderSprite, Position, Radius, Orientation);
+}
+
+// I = 2/5 mR² for a solid sphere. Contact impulses below are per unit mass.
+namespace
+{
+constexpr float inverseInertiaFactor = 2.5f;
+constexpr float contactMass = 1.f / (1.f + inverseInertiaFactor);
+
+void setPlanarVelocity(TBall& ball, float x, float y)
+{
+	ball.Direction.X = x;
+	ball.Direction.Y = y;
+	ball.Speed = maths::normalize_2d(ball.Direction);
+}
+}
+
+void TBall::ApplyPlayfieldFriction(float seconds)
+{
+	if (seconds <= 0.f || !ActiveFlag || CollisionComp || Radius <= 0.f) return;
+	const float vx = Direction.X * Speed, vy = Direction.Y * Speed;
+	const float slopeX = CollisionFlag ? CollisionOffset.X : 0.f;
+	const float slopeY = CollisionFlag ? CollisionOffset.Y : 0.f;
+	const float nz = 1.f / sqrtf(1.f + slopeX*slopeX + slopeY*slopeY);
+	const vector3 normal{-slopeX*nz, -slopeY*nz, nz};
+	vector3 surfaceSpin;
+	maths::cross(AngularVelocity, normal, surfaceSpin);
+	const vector3 slip{vx - Radius*surfaceSpin.X, vy - Radius*surfaceSpin.Y,
+	                   slopeX*vx + slopeY*vy - Radius*surfaceSpin.Z};
+	const float slipSpeed = maths::magnitude(slip);
+	if (slipSpeed > .000001f)
+	{
+		// Oppose sliding at the bottom contact. At rolling equilibrium the
+		// impulse is zero; the stock table already supplies rolling resistance.
+		const float maxImpulse = .16f * PinballTable->GravityDirVectMult * nz * seconds;
+		const float scale = -std::min(contactMass, maxImpulse / slipSpeed);
+		const vector3 impulse{slip.X*scale, slip.Y*scale, slip.Z*scale};
+		setPlanarVelocity(*this, vx + impulse.X, vy + impulse.Y);
+		vector3 torque;
+		maths::cross(impulse, normal, torque);
+		const float invRadius = inverseInertiaFactor / Radius;
+		AngularVelocity.X += torque.X*invRadius;
+		AngularVelocity.Y += torque.Y*invRadius;
+		AngularVelocity.Z += torque.Z*invRadius;
+	}
+	// A finite contact patch slowly damps spin about the surface normal.
+	const float axial = AngularVelocity.X*normal.X + AngularVelocity.Y*normal.Y + AngularVelocity.Z*normal.Z;
+	const float decay = axial * -expm1f(-.85f * seconds);
+	AngularVelocity.X -= decay*normal.X;
+	AngularVelocity.Y -= decay*normal.Y;
+	AngularVelocity.Z -= decay*normal.Z;
+}
+
+void TBall::AdvanceOrientation(float seconds)
+{
+	if (seconds <= 0.f || !ActiveFlag || CollisionComp) return;
+	const float speed = maths::magnitude(AngularVelocity);
+	if (speed < .000001f) return;
+	const float halfAngle = .5f * speed * seconds;
+	const float s = sinf(halfAngle) / speed, w = cosf(halfAngle);
+	const float x = AngularVelocity.X*s, y = AngularVelocity.Y*s, z = AngularVelocity.Z*s;
+	const auto q = Orientation;
+	// Left-multiply because angular velocity is expressed in world coordinates.
+	Orientation = {w*q.x + x*q.w + y*q.z - z*q.y, w*q.y - x*q.z + y*q.w + z*q.x,
+	               w*q.z + x*q.y - y*q.x + z*q.w, w*q.w - x*q.x - y*q.y - z*q.z};
+	auto& a = Orientation;
+	const float inv = 1.f / sqrtf(a.x*a.x + a.y*a.y + a.z*a.z + a.w*a.w);
+	a.x *= inv; a.y *= inv; a.z *= inv; a.w *= inv;
+}
+
+void TBall::ApplyRailFriction(const vector2& normal, float surfaceTangentSpeed, float normalImpulse, float grip)
+{
+	if (Radius <= 0.f || normalImpulse <= 0.f) return;
+	const vector2 tangent{-normal.Y, normal.X};
+	const float vx = Direction.X * Speed, vy = Direction.Y * Speed;
+	const float slip = vx*tangent.X + vy*tangent.Y - Radius*AngularVelocity.Z - surfaceTangentSpeed;
+	const float limit = grip*normalImpulse;
+	const float impulse = Clamp(-slip*contactMass, -limit, limit);
+	setPlanarVelocity(*this, vx + impulse*tangent.X, vy + impulse*tangent.Y);
+	AngularVelocity.Z -= impulse*inverseInertiaFactor/Radius;
 }
 
 void TBall::not_again(TEdgeSegment* edge)
@@ -122,6 +203,7 @@ int TBall::Message(MessageCode code, float value)
 {
 	if (code == MessageCode::Reset)
 	{
+		AwaitingPlungerStrike = false;
 		SpriteSetBall(-1, {0, 0}, 0.0f);
 		Position.X = 0.0;
 		CollisionComp = nullptr;
@@ -133,6 +215,8 @@ int TBall::Message(MessageCode code, float value)
 		Position.Z = Radius;
 		Direction.X = 0.0;
 		Speed = 0.0;
+		AngularVelocity = {};
+		Orientation = {};
 		RayMaxDistance = 0.0;
 	}
 	return 0;
@@ -151,7 +235,6 @@ void TBall::throw_ball(vector3* direction, float angleMult, float speedMult1, fl
 
 void TBall::EdgeCollision(TBall* ball, float distance)
 {
-	ball->CollisionDisabledFlag = true;
 	ball->Position.X += ball->Direction.X * distance;
 	ball->Position.Y += ball->Direction.Y * distance;
 	ball->Direction.X *= ball->Speed;
@@ -171,9 +254,23 @@ void TBall::EdgeCollision(TBall* ball, float distance)
 
 	ball->Direction.X += delta.X;
 	ball->Direction.Y += delta.Y;
-	ball->Speed = maths::normalize_2d(ball->Direction);
 	Direction.X -= delta.X;
 	Direction.Y -= delta.Y;
+	// Equal-mass spheres meet at their equators. A single bounded friction
+	// impulse transfers tangent momentum and torque to both surfaces.
+	const vector2 tangent{-AB.Y, AB.X};
+	const float slip = (ball->Direction.X - Direction.X)*tangent.X +
+	                   (ball->Direction.Y - Direction.Y)*tangent.Y -
+	                   ball->Radius*ball->AngularVelocity.Z - Radius*AngularVelocity.Z;
+	const float limit = .045f * std::max(0.f, projAB + projBA);
+	const float impulse = Clamp(-.5f*contactMass*slip, -limit, limit);
+	ball->Direction.X += tangent.X*impulse;
+	ball->Direction.Y += tangent.Y*impulse;
+	Direction.X -= tangent.X*impulse;
+	Direction.Y -= tangent.Y*impulse;
+	ball->AngularVelocity.Z -= inverseInertiaFactor*impulse/ball->Radius;
+	AngularVelocity.Z -= inverseInertiaFactor*impulse/Radius;
+	ball->Speed = maths::normalize_2d(ball->Direction);
 	Speed = maths::normalize_2d(Direction);
 }
 
@@ -191,6 +288,9 @@ vector2 TBall::get_coordinates()
 
 void TBall::Disable()
 {
+	AngularVelocity = {};
+	Orientation = {};
+	AwaitingPlungerStrike = false;
 	ActiveFlag = false;
 	CollisionDisabledFlag = true;
 	SpriteSet(-1);

@@ -20,6 +20,8 @@ int main(int argc, char* argv[])
 // Windows subsystem main
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
+	if (strstr(lpCmdLine, "-verify") && SDL_getenv("SPACECADET_VERIFY_DIR"))
+		SetErrorMode(GetErrorMode() | SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
 	return winmain::WinMain(lpCmdLine);
 }
 

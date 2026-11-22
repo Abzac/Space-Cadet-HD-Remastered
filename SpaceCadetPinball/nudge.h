@@ -2,6 +2,7 @@
 class nudge
 {
 public:
+	static void reset();
 	static void un_nudge_right(int timerId, void* caller);
 	static void un_nudge_left(int timerId, void* caller);
 	static void un_nudge_up(int timerId, void* caller);
@@ -14,6 +15,8 @@ public:
 	static int nudged_up;
 	static float nudge_count;
 private:
+	static bool allow_nudge();
+	static int nextFairNudgeTick;
 	static void _nudge(float x, float y);
 	static int timer;
 };

@@ -3,11 +3,19 @@
 #include "TCollisionComponent.h"
 #include "TEdgeSegment.h"
 
+struct BallOrientation
+{
+	float x{}, y{}, z{}, w{1.f};
+};
+
 class TBall : public TCollisionComponent, public TEdgeSegment
 {
 public :
 	TBall(TPinballTable* table, int groupIndex);
 	void Repaint();
+	void ApplyPlayfieldFriction(float seconds);
+	void AdvanceOrientation(float seconds);
+	void ApplyRailFriction(const vector2& normal, float surfaceTangentSpeed, float normalImpulse, float grip);
 	void not_again(TEdgeSegment* edge);
 	bool already_hit(const TEdgeSegment& edge) const;
 	int Message(MessageCode code, float value) override;
@@ -21,6 +29,8 @@ public :
 	vector3 Position{};
 	vector3 PrevPosition{};
 	vector3 Direction{};
+	vector3 AngularVelocity{}; // Radians per second, in table coordinates.
+	BallOrientation Orientation{};
 	float Speed;
 	float RayMaxDistance;
 	float TimeDelta;
@@ -38,4 +48,9 @@ public :
 	int LastActiveTime{};
 	float VisualZArray[50]{};
 	bool CollisionDisabledFlag{};
+	// Presentation state for this particular ball, including multiball.
+	bool AwaitingPlungerStrike{};
+	// Latched for this approach to the drain. A ball which rolled off a bat,
+	// or already crossed ordinary striking range, gets no late virtual hit.
+	bool HadFlipperOpportunity{};
 };

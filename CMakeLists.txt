@@ -153,6 +153,10 @@ set(SOURCE_FILES
         SpaceCadetPinball/TSound.h
         SpaceCadetPinball/TTableLayer.cpp
         SpaceCadetPinball/TTableLayer.h
+        SpaceCadetPinball/CabinetDisplay.cpp
+        SpaceCadetPinball/RailReflections.cpp
+        SpaceCadetPinball/RailReflections.h
+        SpaceCadetPinball/CabinetDisplay.h
         SpaceCadetPinball/TTextBox.cpp
         SpaceCadetPinball/TTextBox.h
         SpaceCadetPinball/TTextBoxMessage.cpp
@@ -195,6 +199,23 @@ if(WIN32)
 endif(WIN32)
 
 add_executable(SpaceCadetPinball ${SOURCE_FILES})
+target_sources(SpaceCadetPinball PRIVATE
+	SpaceCadetPinball/GameMenu.cpp
+	SpaceCadetPinball/StickInput.cpp
+	SpaceCadetPinball/HdRenderer.cpp
+	SpaceCadetPinball/TableRelief.cpp
+	SpaceCadetPinball/CabinetEffects.cpp
+	SpaceCadetPinball/FieldTraces.cpp
+	SpaceCadetPinball/DomeVeins.cpp
+	SpaceCadetPinball/HdrOutput.cpp
+	SpaceCadetPinball/VerifyGame.cpp)
+if(MSVC)
+	target_compile_options(SpaceCadetPinball PRIVATE /utf-8 /MP)
+	target_link_libraries(SpaceCadetPinball d3d11 dxgi dcomp d3dcompiler)
+endif()
+if(WIN32)
+	set_target_properties(SpaceCadetPinball PROPERTIES OUTPUT_NAME SpaceCadetHD)
+endif()
 
 # Skip pch on foreign code
 set_source_files_properties(

@@ -1,5 +1,7 @@
 #pragma once
 
+SDL_GameController* CabinetNavigationController();
+
 enum class Msg : int;
 
 enum class Menu1:int
@@ -39,6 +41,8 @@ enum class InputTypes
 	Keyboard,
 	Mouse,
 	GameController,
+	ControllerTrigger,
+	StickNudge,
 };
 
 struct GameInput
@@ -81,6 +85,7 @@ enum class GameBindings
 	ShowControlDialog,
 	ToggleMenuDisplay,
 	Exit,
+	CycleWindowSize,
 	Max
 };
 
@@ -100,8 +105,8 @@ public:
 	// Original does ~120 updates per second.
 	static constexpr int MaxUps = 360, MaxFps = MaxUps, MinUps = 60, MinFps = MinUps,
 	                     DefUps = 120, DefFps = 60;
-	// Original uses 8 sound channels
-	static constexpr int MaxSoundChannels = 32, MinSoundChannels = 1, DefSoundChannels = 8;
+	// Independent sample voices; the final mix is stereo.
+	static constexpr int MaxSoundChannels = 32, MinSoundChannels = 1, DefSoundChannels = 32;
 	static constexpr int MaxVolume = MIX_MAX_VOLUME, MinVolume = 0, DefVolume = MaxVolume;
 	static struct optionsStruct Options;
 	static std::vector<struct OptionBase*> AllOptions;
@@ -121,13 +126,23 @@ public:
 	static void InputDown(GameInput input);
 	static void ShowControlDialog();
 	static void RenderControlDialog();
-	static bool WaitingForInput() { return ControlWaitingForInput; }
+	static bool WaitingForInput();
+	static void BeginBinding(GameBindings action);
+	static void CancelBinding();
+	static void DrawControlBindings();
+	static void ConfigureControllers();
+	static void ControllerAdded(int index);
+	static void ControllerRemoved(SDL_JoystickID id);
+	static void ControllerUsed(SDL_JoystickID id);
+	static bool TriggerChanged(SDL_JoystickID id, int axis, int value, bool& down);
+	static void RouteInput(GameInput input, SDL_JoystickID device, bool down, bool allowGame);
+	static void ReleaseActiveInputs();
+	static void ResumeHeldFlippers();
 	static std::vector<GameBindings> MapGameInput(GameInput key);
 	static void ResetAllOptions();
 private:
 	static std::unordered_map<std::string, std::string> settings;
 	static bool ShowDialog;
-	static GameInput* ControlWaitingForInput;
 
 	static void MyUserData_ReadLine(ImGuiContext* ctx, ImGuiSettingsHandler* handler, void* entry, const char* line);
 	static void* MyUserData_ReadOpen(ImGuiContext* ctx, ImGuiSettingsHandler* handler, const char* name);
@@ -289,4 +304,14 @@ struct optionsStruct
 	StringOption FontFileName;
 	StringOption Language;
 	BoolOption HideCursor;
+	BoolOption FairRules;
+	BoolOption EnhancedArt;
+	BoolOption SmoothSilhouettes;
+	BoolOption AutoHDR;
+	IntOption WindowWidth;
+	IntOption WindowHeight;
+	BoolOption StickPlunger;
+	BoolOption StickNudge;
+	BoolOption ResumeCountdown;
+	BoolOption GeneralUserMusic;
 };

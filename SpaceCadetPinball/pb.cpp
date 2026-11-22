@@ -27,15 +27,17 @@
 #include "TPinballTable.h"
 #include "TTextBox.h"
 #include "translations.h"
+#include <array>
 
 TPinballTable* pb::MainTable = nullptr;
 DatFile* pb::record_table = nullptr;
 int pb::time_ticks = 0;
 GameModes pb::game_mode = GameModes::GameOver;
 float pb::time_now = 0, pb::time_next = 0, pb::time_ticks_remainder = 0;
-float pb::BallMaxSpeed, pb::BallHalfRadius, pb::BallToBallCollisionDistance;
+float pb::BallMaxSpeed, pb::BallHalfRadius;
 float pb::IdleTimerMs = 0;
 bool pb::FullTiltMode = false, pb::FullTiltDemoMode = false, pb::cheat_mode = false, pb::demo_mode = false, pb::CreditsActive = false;
+bool pb::FairMode = false;
 std::string pb::DatFileName, pb::BasePath;
 ImU32 pb::TextBoxColor;
 int pb::quickFlag = 0;
@@ -107,7 +109,6 @@ int pb::init()
 	auto ball = MainTable->BallList.at(0);
 	BallMaxSpeed = ball->Radius * 200.0f;
 	BallHalfRadius = ball->Radius * 0.5f;
-	BallToBallCollisionDistance = (ball->Radius + BallHalfRadius) * 2.0f;
 
 	int red = 255, green = 255, blue = 255;
 	auto fontColor = get_rc_string(Msg::TextBoxColor);
@@ -120,6 +121,7 @@ int pb::init()
 
 int pb::uninit()
 {
+	nudge::reset();
 	score::unload_msg_font();
 	loader::unload();
 	delete record_table;
@@ -248,7 +250,7 @@ void pb::toggle_demo()
 		MainTable->Message(MessageCode::Reset, 0.0);
 		mode_change(GameModes::GameOver);
 		MissTextBox->Clear();
-		InfoTextBox->Display(get_rc_string(Msg::STRING125), -1.0);
+		InfoTextBox->Display(Msg::STRING125, -1.0);
 	}
 	else
 	{
@@ -322,21 +324,155 @@ void pb::frame(float dtMilliSec)
 	timer::check();
 	render::update();
 	score::update(MainTable->CurScoreStruct);
-	if (!MainTable->TiltLockFlag)
+	if (!FairMode && !MainTable->TiltLockFlag)
 	{
 		if (nudge::nudge_count > 0.5f)
 		{
-			InfoTextBox->Display(get_rc_string(Msg::STRING126), 2.0);
+			InfoTextBox->Display(Msg::STRING126, 2.0);
 		}
 		if (nudge::nudge_count > 1.0f)
 			MainTable->tilt(time_now);
 	}
 }
 
+namespace
+{
+// AddBall permits at most twenty balls. A captured ball or one spawned by a
+// contact callback joins the free-motion solver on its next physics tick.
+struct MovingBall
+{
+	TBall* ball;
+	int contacts;
+
+	bool free() const
+	{
+		return ball->ActiveFlag && ball->TimeDelta > 0.f && !ball->CollisionComp &&
+		       !ball->CollisionDisabledFlag && contacts < 32;
+	}
+};
+
+struct Contact
+{
+	MovingBall* first;
+	MovingBall* second;
+	TEdgeSegment* wall;
+	ray_type ray;
+	float distance;
+	float time;
+};
+
+float sphereContactTime(const MovingBall& a, const MovingBall& b)
+{
+	const vector2 p{a.ball->Position.X - b.ball->Position.X, a.ball->Position.Y - b.ball->Position.Y};
+	const vector2 v{a.ball->Direction.X * a.ball->Speed - b.ball->Direction.X * b.ball->Speed,
+	                a.ball->Direction.Y * a.ball->Speed - b.ball->Direction.Y * b.ball->Speed};
+	const float approach = -maths::DotProduct(p,v);
+	if (approach <= 0.f) return 1e9f;
+	const float radius = a.ball->Radius + b.ball->Radius;
+	const float gap = maths::magnitudeSq(p) - radius*radius;
+	if (gap <= 0.f) return 0.f;
+	const float discriminant = approach*approach - maths::magnitudeSq(v)*gap;
+	return discriminant >= 0.f ? gap / (approach + std::sqrt(discriminant)) : 1e9f;
+}
+
+void advanceBalls(MovingBall* balls, size_t count, float remaining)
+{
+	for (size_t i = 0; i < count; ++i) balls[i].contacts = 0;
+	// Even an out-of-range boost must make representable time progress. At
+	// that extreme use a longer swept ray, still testing its full length.
+	const float minimumSweep = remaining / 128.f;
+	while (remaining > 0.f)
+	{
+		float interval = remaining;
+		// A kicker can change the speed partway through the slice. Keep ray
+		// lengths bounded even on its very first boosted sweep.
+		for (size_t i = 0; i < count; ++i)
+			if (balls[i].free() && balls[i].ball->Speed > 0.f)
+				interval = std::min(interval, std::max(minimumSweep, pb::BallHalfRadius / balls[i].ball->Speed));
+
+		Contact hit{};
+		hit.time = interval;
+		for (size_t i = 0; i < count; ++i)
+		{
+			auto& a = balls[i];
+			if (!a.free()) continue;
+			if (a.ball->Speed > 0.f)
+			{
+				ray_type ray{};
+				ray.MinDistance = .002f;
+				ray.MaxDistance = interval * a.ball->Speed;
+				ray.CollisionMask = a.ball->CollisionMask;
+				ray.Origin = a.ball->Position;
+				ray.Direction = a.ball->Direction;
+				TEdgeSegment* wall = nullptr;
+				const float distance = TTableLayer::edge_manager->FindCollisionDistance(&ray, a.ball, &wall);
+				if (wall)
+				{
+					const float time = std::min(interval, std::max(0.f, distance) / a.ball->Speed);
+					if (!hit.first || time < hit.time) hit = {&a, nullptr, wall, ray, distance, time};
+				}
+			}
+			for (size_t j = i + 1; j < count; ++j)
+			{
+				auto& b = balls[j];
+				if (!b.free() || !(a.ball->CollisionMask & b.ball->CollisionMask)) continue;
+				const float time = sphereContactTime(a,b);
+				if (time < hit.time || (!hit.first && time <= interval))
+					hit = {&a, &b, nullptr, {}, 0.f, time};
+			}
+		}
+
+		for (size_t i = 0; i < count; ++i)
+		{
+			auto& a = balls[i];
+			if (!a.free()) continue;
+			auto ball = a.ball;
+			ball->AdvanceOrientation(hit.time);
+			if (hit.time > 0.f || hit.first == &a)
+			{
+				// Native pass-through switches remember their edge for the next sweep.
+				if (!ball->EdgeCollisionResetFlag) ball->EdgeCollisionCount = 0;
+				ball->EdgeCollisionResetFlag = !ball->EdgeCollisionResetFlag;
+			}
+			// Each wall handler places its own ball at its cached contact
+			// (or at a scripted capture point). Other balls move freely to it.
+			if (!hit.wall || hit.first != &a)
+			{
+				const float travel = hit.time * ball->Speed;
+				ball->Position.X += travel * ball->Direction.X;
+				ball->Position.Y += travel * ball->Direction.Y;
+			}
+		}
+		remaining -= hit.time;
+		if (!hit.first) continue;
+
+		auto& a = *hit.first;
+		if (hit.wall)
+		{
+			// Edges cache their intersection; a sweep for another ball may
+			// have overwritten it since selection.
+			if (count > 1) hit.wall->FindCollisionDistance(hit.ray);
+			a.ball->RayMaxDistance = hit.ray.MaxDistance;
+			hit.wall->EdgeCollision(a.ball, hit.distance);
+		}
+		else
+		{
+			hit.second->ball->EdgeCollision(a.ball, 0.f);
+		}
+		// A trigger at zero distance normally suppresses itself. Repeated
+		// zero-time or very close contacts cannot starve other moving balls.
+		++a.contacts;
+		if (hit.second) ++hit.second->contacts;
+	}
+}
+}
+
 void pb::timed_frame(float timeDelta)
 {
+	if (timeDelta <= 0.f) return;
 	for (auto ball : MainTable->BallList)
 	{
+		if (FairMode) TFlipper::TrackDrainApproach(*ball, *MainTable);
 		if (!ball->ActiveFlag || ball->HasGroupFlag || ball->CollisionComp || ball->Speed >= 0.8f)
 		{
 			if (ball->StuckCounter > 0)
@@ -361,114 +497,44 @@ void pb::timed_frame(float timeDelta)
 		}
 	}
 
-	int ballSteps[20]{};
-	float ballStepsDistance[20]{};
-	int maxStep = -1;
-	for (auto index = 0u; index < MainTable->BallList.size(); index++)
+	std::array<MovingBall, 20> freeBalls{};
+	size_t count = 0;
+	int slices = 1;
+	for (auto ball : MainTable->BallList)
 	{
-		auto ball = MainTable->BallList[index];
-		ballSteps[index] = -1;
-		if (ball->ActiveFlag != 0)
+		if (!ball->ActiveFlag) continue;
+		vector2 force{};
+		ball->TimeDelta = timeDelta;
+		ball->CollisionDisabledFlag = false;
+		if (ball->CollisionComp)
 		{
-			vector2 vecDst{};
-			ball->TimeDelta = timeDelta;
-			if (ball->TimeDelta > 0.01f && ball->Speed < 0.8f)
-				ball->TimeDelta = 0.01f;
-			ball->CollisionDisabledFlag = false;
-			if (ball->CollisionComp)
-			{
-				ball->CollisionComp->FieldEffect(ball, &vecDst);
-			}
-			else
-			{
-				TTableLayer::edge_manager->FieldEffects(ball, &vecDst);
-				vecDst.X *= ball->TimeDelta;
-				vecDst.Y *= ball->TimeDelta;
-				ball->Direction.X *= ball->Speed;
-				ball->Direction.Y *= ball->Speed;
-				maths::vector_add(ball->Direction, vecDst);
-				ball->Speed = maths::normalize_2d(ball->Direction);
-				if (ball->Speed > BallMaxSpeed)
-					ball->Speed = BallMaxSpeed;
-
-				ballStepsDistance[index] = ball->Speed * ball->TimeDelta;
-				auto ballStep = static_cast<int>(std::ceil(ballStepsDistance[index] / BallHalfRadius)) - 1;
-				ballSteps[index] = ballStep;
-				if (ballStep > maxStep)
-					maxStep = ballStep;
-			}
+			// Captures retain the native scripted time step. All free balls,
+			// including one initially at rest, share the full frame clock.
+			if (ball->Speed < .8f) ball->TimeDelta = std::min(timeDelta, .01f);
+			ball->CollisionComp->FieldEffect(ball, &force);
+			continue;
 		}
+		TTableLayer::edge_manager->FieldEffects(ball, &force);
+		ball->Direction.X = ball->Direction.X * ball->Speed + force.X * ball->TimeDelta;
+		ball->Direction.Y = ball->Direction.Y * ball->Speed + force.Y * ball->TimeDelta;
+		ball->Speed = std::min(maths::normalize_2d(ball->Direction), BallMaxSpeed);
+		ball->ApplyPlayfieldFriction(ball->TimeDelta);
+		freeBalls[count++] = {ball, 0};
+		slices = std::max(slices, int(std::ceil(ball->Speed * ball->TimeDelta / BallHalfRadius)));
 	}
 
-	float deltaAngle[4]{};
-	int flipperSteps[4]{};
-	for (auto index = 0u; index < MainTable->FlipperList.size(); index++)
+	for (auto flipper : MainTable->FlipperList)
 	{
-		auto flipStep = MainTable->FlipperList[index]->GetFlipperStepAngle(timeDelta, &deltaAngle[index]) - 1;
-		flipperSteps[index] = flipStep;
-		if (flipStep > maxStep)
-			maxStep = flipStep;
+		float deltaAngle = 0.f;
+		const int steps = flipper->GetFlipperStepAngle(timeDelta, &deltaAngle);
+		flipper->FrameSweep = deltaAngle * steps;
+		slices = std::max(slices, steps);
 	}
-
-	ray_type ray{};
-	ray.MinDistance = 0.002f;
-	for (auto step = 0; step <= maxStep; step++)
+	for (int step = 0; step < slices; ++step)
 	{
-		for (auto ballIndex = 0u; ballIndex < MainTable->BallList.size(); ballIndex++)
-		{
-			auto ball = MainTable->BallList[ballIndex];
-			if (!ball->CollisionDisabledFlag && ballSteps[ballIndex] >= step)
-			{
-				ray.CollisionMask = ball->CollisionMask;
-
-				for (auto distanceSum = 0.0f; distanceSum < BallHalfRadius;)
-				{
-					ray.Origin = ball->Position;
-					ray.Direction = ball->Direction;
-					if (ballSteps[ballIndex] <= step)
-					{
-						ray.MaxDistance = ballStepsDistance[ballIndex] - ballSteps[ballIndex] * BallHalfRadius;
-					}
-					else
-					{
-						ray.MaxDistance = BallHalfRadius;
-					}
-
-					TEdgeSegment* edge = nullptr;
-					auto distance = TTableLayer::edge_manager->FindCollisionDistance(&ray, ball, &edge);
-					if (distance > 0.0f)
-					{
-						distance = BallToBallCollision(ray, *ball, &edge, distance);
-					}
-					if (ball->EdgeCollisionResetFlag)
-					{
-						ball->EdgeCollisionResetFlag = false;
-					}
-					else
-					{
-						ball->EdgeCollisionCount = 0;
-						ball->EdgeCollisionResetFlag = true;
-					}
-					if (distance >= 1e9f)
-					{
-						ball->Position.X += ray.MaxDistance * ray.Direction.X;
-						ball->Position.Y += ray.MaxDistance * ray.Direction.Y;
-						break;
-					}
-
-					edge->EdgeCollision(ball, distance);
-					if (distance <= 0.0f || ball->CollisionDisabledFlag)
-						break;
-					distanceSum += distance;
-				}
-			}
-		}
-
-		for (auto flipIndex = 0u; flipIndex < MainTable->FlipperList.size(); flipIndex++)
-		{
-			if (flipperSteps[flipIndex] >= step)
-				MainTable->FlipperList[flipIndex]->FlipperCollision(deltaAngle[flipIndex]);
-		}
+		advanceBalls(freeBalls.data(), count, timeDelta / slices);
+		for (auto flipper : MainTable->FlipperList)
+			if (flipper->FrameSweep != 0.f) flipper->FlipperCollision(flipper->FrameSweep / slices);
 	}
 
 	for (const auto flipper : MainTable->FlipperList)
@@ -492,7 +558,7 @@ void pb::pause_continue()
 	{
 		if (MainTable)
 			MainTable->Message(MessageCode::Pause, time_now);
-		InfoTextBox->Display(get_rc_string(Msg::STRING123), -1.0);
+		InfoTextBox->Display(Msg::STRING123, -1.0);
 		midi::music_stop();
 		Sound::Deactivate();
 	}
@@ -771,28 +837,4 @@ void pb::ShowMessageBox(Uint32 flags, LPCSTR title, LPCSTR message)
 {
 	fprintf(flags == SDL_MESSAGEBOX_ERROR ? stderr : stdout, "BL error: %s\n%s\n", title, message);
 	SDL_ShowSimpleMessageBox(flags, title, message, winmain::MainWindow);
-}
-
-float pb::BallToBallCollision(const ray_type& ray, const TBall& ball, TEdgeSegment** edge, float collisionDistance)
-{
-	for (const auto curBall : MainTable->BallList)
-	{
-		if (curBall->ActiveFlag && curBall != &ball && (curBall->CollisionMask & ball.CollisionMask) != 0 &&
-			std::abs(curBall->Position.X - ball.Position.X) < BallToBallCollisionDistance &&
-			std::abs(curBall->Position.Y - ball.Position.Y) < BallToBallCollisionDistance)
-		{
-			auto distance = curBall->FindCollisionDistance(ray);
-			if (distance < 1e9f)
-			{
-				distance = std::max(0.0f, distance - 0.002f);
-				if (distance < collisionDistance)
-				{
-					collisionDistance = distance;
-					*edge = curBall;
-				}
-			}
-		}
-	}
-
-	return collisionDistance;
 }

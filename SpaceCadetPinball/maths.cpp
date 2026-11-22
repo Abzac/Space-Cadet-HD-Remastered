@@ -249,12 +249,13 @@ vector2 maths::vector_mul(const vector2& vec1, float val)
 }
 
 float maths::basic_collision(TBall* ball, vector2* nextPosition, vector2* direction, float elasticity, float smoothness,
-                             float threshold, float boost)
+                             float threshold, float boost, float surfaceTangentSpeed, float grip)
 {
 	ball->Position.X = nextPosition->X + direction->X * 0.0005f;
 	ball->Position.Y = nextPosition->Y + direction->Y * 0.0005f;
 
 	// Project ball direction on collision rebound direction
+	const float incomingNormal = DotProduct(*direction, ball->Direction) * ball->Speed;
 	auto reboundProj = -DotProduct(*direction, ball->Direction);
 	if (reboundProj < 0)
 	{
@@ -282,6 +283,8 @@ float maths::basic_collision(TBall* ball, vector2* nextPosition, vector2* direct
 		ball->Direction.Y = ball->Speed * ball->Direction.Y + direction->Y * boost;
 		ball->Speed = normalize_2d(ball->Direction);
 	}
+	const float normalImpulse = DotProduct(*direction, ball->Direction) * ball->Speed - incomingNormal;
+	ball->ApplyRailFriction(*direction, surfaceTangentSpeed, normalImpulse, grip);
 	return reboundSpeed;
 }
 

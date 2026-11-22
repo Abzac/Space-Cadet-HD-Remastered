@@ -8,6 +8,7 @@
 #include "render.h"
 #include "score.h"
 #include "timer.h"
+#include "winmain.h"
 
 
 TTextBox::TTextBox(TPinballTable* table, int groupIndex) : TPinballComponent(table, groupIndex, true)
@@ -102,12 +103,13 @@ void TTextBox::Clear(bool lowPriorityOnly)
 		Draw();
 }
 
-void TTextBox::Display(const char* text, float time, bool lowPriority)
+void TTextBox::Display(const CabinetText& text, float time, bool lowPriority)
 {
-	if (!text)
+	if (text.key==Msg::Max && text.value.empty())
 		return;
 
-	if (CurrentMessage && !strcmp(text, PreviousMessage->Text))
+	if (CurrentMessage && PreviousMessage->Content.key==text.key && PreviousMessage->Content.argument==text.argument &&
+	    PreviousMessage->Content.value==text.value)
 	{
 		PreviousMessage->Refresh(time);
 		if (PreviousMessage == CurrentMessage)
@@ -145,8 +147,16 @@ void TTextBox::Display(const char* text, float time, bool lowPriority)
 
 void TTextBox::DrawImGui()
 {
-	// Do nothing when using a font (the text will be rendered to VScreen in TTextBox::Draw)
-	if (Font || !CurrentMessage)
+	if (!CurrentMessage)
+		return;
+	if (CabinetDisplay::SupportsLanguage())
+	{
+		SDL_Rect aperture = fullscrn::GetScreenRectFromPinballRect({OffsetX, OffsetY, Width, Height});
+		displayPanel.Draw(winmain::Renderer, aperture, Width, Height, CurrentMessage->Text,
+			CurrentMessage->Time < 0 ? -1 : CurrentMessage->EndTicks);
+		return;
+	}
+	if (Font)
 		return;
 
 	char windowName[64];
@@ -224,9 +234,10 @@ void TTextBox::Draw()
 
 	if (display)
 	{
-		if (!Font)
+		displayPanel.BeginMessage(pb::time_ticks);
+		if (CabinetDisplay::SupportsLanguage() || !Font)
 		{
-			// Immediate mode drawing using system font is handled by TTextBox::DrawImGui
+			// The cabinet panel and the system font fallback are drawn after the playfield.
 			return;
 		}
 

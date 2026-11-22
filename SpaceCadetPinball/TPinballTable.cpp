@@ -288,11 +288,11 @@ void TPinballTable::ChangeBallCount(int count)
 
 void TPinballTable::tilt(float time)
 {
-	if (!TiltLockFlag && !BallInDrainFlag)
+	if (!pb::FairMode && !TiltLockFlag && !BallInDrainFlag)
 	{
 		pb::InfoTextBox->Clear();
 		pb::MissTextBox->Clear();
-		pb::InfoTextBox->Display(pb::get_rc_string(Msg::STRING136), -1.0);
+		pb::InfoTextBox->Display(Msg::STRING136, -1.0);
 		loader::play_sound(SoundIndex3, nullptr, "TPinballTable1");
 		TiltTimeoutTimer = timer::set(30.0, this, tilt_timeout);
 
@@ -449,6 +449,7 @@ int TPinballTable::Message(MessageCode code, float value)
 			UnknownP71 = 0;
 			pb::InfoTextBox->Clear();
 			pb::MissTextBox->Clear();
+			pb::InfoTextBox->Display(Msg::STRING125, -1.0f);
 			LightGroup->Message(MessageCode::TLightGroupLightShowAnimation, 0.2f);
 			auto time = loader::play_sound(SoundIndex1, nullptr, "TPinballTable2");
 			if (time < 0)
@@ -557,7 +558,7 @@ int TPinballTable::Message(MessageCode code, float value)
 	case MessageCode::GameOver:
 		loader::play_sound(SoundIndex2, nullptr, "TPinballTable3");
 		pb::MissTextBox->Clear();
-		pb::InfoTextBox->Display(pb::get_rc_string(Msg::STRING135), -1.0);
+		pb::InfoTextBox->Display(Msg::STRING135, -1.0);
 		EndGameTimeoutTimer = timer::set(3.0, this, EndGame_timeout);
 		break;
 	case MessageCode::Reset:
@@ -635,6 +636,7 @@ TBall* TPinballTable::AddBall(vector2 position)
 	ball->Position.X = position.X;
 	ball->Position.Y = position.Y;
 	ball->PrevPosition = ball->Position;
+	ball->HadFlipperOpportunity = false;
 	ball->StuckCounter = 0;
 	ball->LastActiveTime = pb::time_ticks;
 
@@ -681,7 +683,7 @@ void TPinballTable::EndGame_timeout(int timerId, void* caller)
 	if (table->Demo)
 		table->Demo->Message(MessageCode::GameOver, 0.0);
 	control::handler(MessageCode::ControlMissionStarted, pb::MissTextBox);
-	pb::InfoTextBox->Display(pb::get_rc_string(Msg::STRING125), -1.0);
+	pb::InfoTextBox->Display(Msg::STRING125, -1.0);
 }
 
 void TPinballTable::LightShow_timeout(int timerId, void* caller)

@@ -11,6 +11,8 @@
 
 TLightRollover::TLightRollover(TPinballTable* table, int groupIndex) : TRollover(table, groupIndex, false)
 {
+	if (RenderSprite)
+		RenderSprite->Emissive = true;
 	RolloverFlag = 0;
 	Timer = 0;
 	SpriteSet(-1);

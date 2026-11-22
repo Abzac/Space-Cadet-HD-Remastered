@@ -10,8 +10,21 @@ enum class VisualTypes : char
 	Ball = 2
 };
 
+class TFlagSpinner;
+class TPlunger;
+class TBall;
+
+struct EmissiveRegion
+{
+	float x, y, rx, ry; // Center and radii in normalized renderer output coordinates
+	uint32_t covered[8]; // 16 x 16 footprint of foreground hardware masking an insert
+};
+
 struct render_sprite
 {
+	TFlagSpinner* Spinner{};
+	TPlunger* HdPlunger{};
+	int PlungerPhase{-1};
 	rectangle_type BmpRect{};
 	gdrv_bitmap8* Bmp;
 	zmap_header_type* ZMap;
@@ -25,6 +38,8 @@ struct render_sprite
 	std::vector<render_sprite*>* OccludedSprites;
 	rectangle_type BoundingRect{};
 	bool DirtyFlag{};
+	bool Emissive{};
+	bool HdBallVisible{};
 
 	render_sprite(VisualTypes visualType, gdrv_bitmap8* bmp, zmap_header_type* zMap,
 	              int xPosition, int yPosition, rectangle_type* boundingRect);
@@ -41,6 +56,9 @@ public:
 	static zmap_header_type* background_zmap;
 	static int zmap_offsetX, zmap_offsetY;
 	static SDL_Rect DestinationRect;
+	static bool EnhancedGraphics;
+	static int HdAssetCount;
+	static std::vector<EmissiveRegion> EmissiveRegions;
 
 	static void init(gdrv_bitmap8* bmp, int width, int height);
 	static void uninit();
@@ -52,7 +70,8 @@ public:
 	static void shift(int offsetX, int offsetY);
 	static void build_occlude_list();
 	static void SpriteViewer(bool* show);
-	static void PresentVScreen();
+	static void PresentVScreen(float decorTime);
+	static bool GetVisibleBallImage(const TBall& ball, SDL_FRect& image, SDL_FRect& fieldClip);
 private:
 	static std::vector<render_sprite*> sprite_list, ball_list;
 	static int offset_x, offset_y;

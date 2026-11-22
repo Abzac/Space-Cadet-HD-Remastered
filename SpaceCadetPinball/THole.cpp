@@ -74,6 +74,7 @@ void THole::Collision(TBall* ball, vector2* nextPosition, vector2* direction, fl
 		Threshold = 1e9f;
 		BallCapturedFlag = true;
 		ball->CollisionComp = this;
+		ball->AngularVelocity = {};
 		ball->Position.X = Circle.Center.X;
 		ball->Position.Y = Circle.Center.Y;
 		ball->Direction.Z = 0.0;

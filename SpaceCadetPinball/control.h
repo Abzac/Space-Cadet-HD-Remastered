@@ -91,6 +91,8 @@ public:
 	static void table_set_replay(float value);
 	static void UnstuckBall(TBall& ball, int dt);
 	static bool CheckBallInControlBounds(const TBall& ball, const TCollisionComponent& cmp);
+	static bool AwaitingManualDeployment();
+	static bool HasDeployedBall();
 	static void cheat_bump_rank();
 	static int SpecialAddScore(int score, bool mission = false);
 	static int AddRankProgress(int rank);
