@@ -12,7 +12,7 @@
 - **Refined physics** with more precise rebounds, flipper sweeps and ball spin.
 - **Smoother animations** for spinners and the plunger spring.
 - **4× as many sound-effect channels** (8 → 32), with all 60 original effects.
-- **Two music options** — original MIDI or the GeneralUser GS soundtrack.
+- **Five music options** — Original MIDI and four selectable SoundFont recordings.
 - **Controller support** for Xbox, DualShock 4, DualSense and Steam Input.
 - **Optional Meditative mode** with unlimited fuel and rearming kickbacks.
 
@@ -43,7 +43,7 @@ Open **Esc**, tick **Meditative**, then select **Play** to start a new game. Bot
 
 All 60 original WAV effects are preserved. The mixer has **32 simultaneous effect voices**, up from eight, so a flipper, a bumper and a long mission cue can finish together even when the table gets busy. A stereo-linked peak limiter protects loud combinations while keeping individual hits at their recorded level.
 
-For music, the original score pairs synth bass, vibraphone, muted guitar and drums. **GeneralUser GS** plays that arrangement as a seamlessly looped stereo recording, keeping the note velocities, pitch bends and effects sends. **Original MIDI** plays the score through the available MIDI synthesizer. To compare them, open **Esc → Settings**, enable **Music** and change **Instrument bank**. New profiles start with table sounds on at **128/128**, music off, and GeneralUser GS selected at **64/128** for when you turn it on. [GeneralUser GS by S. Christian Collins](https://github.com/mrbumpy409/GeneralUser-GS)
+The original score pairs synth bass, vibraphone, muted guitar and drums. Choose **Original MIDI** for playback through the available MIDI synthesizer, or hear the same performance rendered with **GeneralUser GS**, **Arachno**, **FluidR3 GM** or **TimGM6mb**. The four stereo recordings share a 28-bar loop and are matched at about −18.8 LUFS. To compare them during a game, open **Esc → Settings**, enable **Music**, choose an **Instrument bank** and resume play. Switching between recordings keeps your place in the phrase. Table sounds have a separate volume control. New profiles default to GeneralUser GS, music off at **64/128**, and table sounds on at **128/128**.
 
 ## At the cabinet
 
@@ -72,7 +72,7 @@ Xbox controllers, PlayStation DualShock 4 and DualSense, and standard controller
 
 ## Run or build on Windows x64
 
-Windows x64 is the verified platform for 7.0.2. Linux and macOS builds are experimental and untested. You may encounter build errors or differences in fullscreen behaviour, input and audio. The HDR output currently requires Windows.
+Windows x64 is the verified platform for 7.1. Linux and macOS builds are experimental and untested. You may encounter build errors or differences in fullscreen behaviour, input and audio. The HDR output currently requires Windows.
 
 The repository contains the engine, remastered artwork masters and build recipes. Supply the original Windows game data from your own installation. The original executable, WAV effects, MIDI score and game DAT are distributed separately from this source tree.
 
@@ -87,16 +87,15 @@ $data = New-Item -ItemType Directory -Force .\bin\Release\Data
 Get-ChildItem -LiteralPath $original -File | Where-Object Extension -In '.DAT','.MID','.WAV' | Copy-Item -Destination $data.FullName
 ```
 
-**HD artwork.** If you have the 7.0.2 build, copy its `HD` folder beside the executable. To generate it yourself, follow the Python setup and weights download in [the artwork build notes](BUILD-HD.md), then run the command below in that Python environment. It builds the texture set from the original Windows DAT, the included art masters and the Real-ESRGAN weights.
+**HD artwork.** If you have a packaged build, copy its `HD` folder beside the executable. To generate it yourself, follow the Python setup and weights download in [the artwork build notes](BUILD-HD.md), then run the command below in that Python environment. It builds the texture set from the original Windows DAT, the included art masters and the Real-ESRGAN weights.
 
 ```powershell
 python tools/art-v2/bake.py bin/Release/Data/PINBALL.DAT bin/Release/HD --weights realesr-general-x4v3.pth
 ```
 
-**Music.** The original MIDI uses the score in `Data`. For GeneralUser GS, copy your existing `Music` folder beside the executable or render the loop locally from your MIDI with 64-bit Python, GeneralUser GS 2.0.3 and the FluidSynth 2.6.2 Windows libraries. The [music notes](tools/BONUS-MUSIC.md) identify the exact bank and synthesizer downloads.
+**Music.** Original MIDI uses the score in `Data`. Copy the packaged `Music` folder alongside the executable or rebuild the four Ogg loops from your own MIDI. The [soundtrack build guide](tools/BONUS-MUSIC.md) lists the instrument banks, exact output filenames and rendering commands.
 
 ```powershell
-python tools/render_bonus_music.py --midi bin/Release/Data/PINBALL.MID --sf2 'D:\MusicTools\GeneralUser-GS.sf2' --bin 'D:\MusicTools\fluidsynth\bin' --out bin/Release/Music/SpaceCadet-GS.ogg
 .\bin\Release\SpaceCadetHD.exe
 ```
 

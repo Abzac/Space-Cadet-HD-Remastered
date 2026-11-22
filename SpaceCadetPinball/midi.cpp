@@ -8,7 +8,15 @@
 
 std::vector<Mix_Music*> midi::LoadedTracks{};
 Mix_Music* midi::track1, * midi::track2, * midi::track3;
-Mix_Music* midi::generalUserTheme{};
+Mix_Music* midi::themes[BankCount]{};
+namespace
+{
+	double resumePosition = -1;
+	double recordedPosition()
+	{
+		return Mix_GetMusicType(nullptr) == MUS_OGG ? Mix_GetMusicPosition(nullptr) : -1;
+	}
+}
 MidiTracks midi::active_track, midi::NextTrack;
 int midi::Volume = MIX_MAX_VOLUME;
 bool midi::IsPlaying = false, midi::MixOpen = false;
@@ -38,7 +46,9 @@ void midi::music_play()
 	if (!IsPlaying)
 	{
 		IsPlaying = true;
-		play_track(NextTrack, true);
+		if (play_track(NextTrack, true) && resumePosition >= 0 && Mix_GetMusicType(nullptr) == MUS_OGG)
+			Mix_SetMusicPosition(resumePosition);
+		resumePosition = -1;
 		NextTrack = MidiTracks::None;
 	}
 }
@@ -48,6 +58,7 @@ void midi::music_stop()
 	if (IsPlaying)
 	{
 		IsPlaying = false;
+		resumePosition = active_track == MidiTracks::Track1 ? recordedPosition() : -1;
 		NextTrack = active_track;
 		StopPlayback();
 	}
@@ -90,16 +101,24 @@ int midi::music_init(bool mixOpen, int volume)
 		{
 			if (auto base = SDL_GetBasePath())
 			{
-				const auto path = std::string(base) + "Music/SpaceCadet-GS.ogg";
+				const auto dir = std::string(base) + "Music/";
 				SDL_free(base);
-				generalUserTheme = Mix_LoadMUS(path.c_str());
-				if (generalUserTheme)
-					LoadedTracks.push_back(generalUserTheme);
+				constexpr const char* files[] = {"SpaceCadet-GS.ogg", "SpaceCadet-Arachno.ogg",
+					"SpaceCadet-FluidR3-GM.ogg", "SpaceCadet-TimGM6mb.ogg"};
+				static_assert(sizeof(files) / sizeof(files[0]) == BankCount - 1, "Bank file count");
+				for (int bank = 1; bank < BankCount; ++bank)
+				{
+					themes[bank] = Mix_LoadMUS((dir + files[bank - 1]).c_str());
+					if (themes[bank])
+						LoadedTracks.push_back(themes[bank]);
+				}
 			}
 		}
 	}
 
-	return track1 || generalUserTheme;
+	themes[0] = track1;
+	resumePosition = -1;
+	return SelectedBank() >= 0;
 }
 
 void midi::music_shutdown()
@@ -112,19 +131,41 @@ void midi::music_shutdown()
 	}
 	active_track = MidiTracks::None;
 	LoadedTracks.clear();
-	track1 = track2 = track3 = generalUserTheme = nullptr;
+	track1 = track2 = track3 = nullptr;
+	for (auto& theme : themes) theme = nullptr;
 }
 
 bool midi::HasInstrumentChoice()
 {
-	return track1 && generalUserTheme;
+	int count = 0;
+	for (auto theme : themes) if (theme) ++count;
+	return count > 1;
 }
 
-void midi::SelectGeneralUser(bool enabled)
+bool midi::BankAvailable(int bank)
 {
-	options::Options.GeneralUserMusic = enabled;
-	if (IsPlaying && active_track == MidiTracks::Track1)
-		play_track(active_track, true);
+	return bank >= 0 && bank < BankCount && themes[bank];
+}
+
+int midi::SelectedBank()
+{
+	const int saved = options::Options.MusicBank;
+	if (BankAvailable(saved)) return saved;
+	if (BankAvailable(1)) return 1;
+	for (int bank = 0; bank < BankCount; ++bank)
+		if (BankAvailable(bank)) return bank;
+	return -1;
+}
+
+void midi::SelectBank(int bank)
+{
+	if (!BankAvailable(bank)) return;
+	const bool switchLive = IsPlaying && active_track == MidiTracks::Track1;
+	const double position = switchLive ? recordedPosition() : -1;
+	options::Options.MusicBank = bank;
+	if (bank == 0) resumePosition = -1;
+	if (switchLive && play_track(active_track, true) && bank != 0 && position >= 0)
+		Mix_SetMusicPosition(position);
 }
 
 void midi::SetVolume(int volume)
@@ -247,7 +288,10 @@ Mix_Music* midi::TrackToMidi(MidiTracks track)
 		midi = nullptr;
 		break;
 	case MidiTracks::Track1:
-		midi = generalUserTheme && (options::Options.GeneralUserMusic || !track1) ? generalUserTheme : track1;
+		{
+			const int bank = SelectedBank();
+			midi = bank >= 0 ? themes[bank] : nullptr;
+		}
 		break;
 	case MidiTracks::Track2:
 		midi = track2;

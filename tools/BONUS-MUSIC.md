@@ -1,4 +1,37 @@
-# The Space Cadet theme on GeneralUser GS
+# Building the Space Cadet soundtracks
+
+## Render the four banks for 7.1
+
+Original MIDI plays `Data/PINBALL.MID` directly. Each SoundFont option uses its own Ogg recording of the same score. Use 64-bit Python 3.8 or later and the [FluidSynth 2.6.2 win10-x64-cpp11 release](https://github.com/FluidSynth/fluidsynth/releases/tag/v2.6.2). Extract the synthesizer and point `$synth` below to the directory containing both `libfluidsynth-3.dll` and `sndfile.dll`.
+
+| Bank | Input SF2 | Output in Music | Source |
+| --- | --- | --- | --- |
+| GeneralUser GS 2.0.3 | GeneralUser-GS.sf2 | SpaceCadet-GS.ogg | [S. Christian Collins](https://github.com/mrbumpy409/GeneralUser-GS/tree/684543d5e5efaef08d02be50dcda8d552478fa60) |
+| Arachno 1.0 | Arachno SoundFont - Version 1.0.sf2 | SpaceCadet-Arachno.ogg | [Maxime Abbey, plain SF2 ZIP](https://www.arachnosoft.com/main/download.php?id=soundfont-sf2) |
+| FluidR3 GM | FluidR3_GM.sf2 | SpaceCadet-FluidR3-GM.ogg | [Debian fluid-soundfont-gm](https://deb.debian.org/debian/pool/main/f/fluid-soundfont/) |
+| TimGM6mb | TimGM6mb.sf2 | SpaceCadet-TimGM6mb.ogg | [Debian timgm6mb-soundfont 1.3 source archive](https://deb.debian.org/debian/pool/main/t/timgm6mb-soundfont/) |
+
+Extract each SF2 into a common directory. For FluidR3 GM, open the Debian package and its inner data archive, then extract `usr/share/sounds/sf2/FluidR3_GM.sf2`. For TimGM6mb, extract the SF2 from `timgm6mb-soundfont_1.3.orig.tar.gz`. From the repository root, adjust the paths below and run:
+
+```powershell
+$banks = 'D:\SoundFonts'
+$synth = 'D:\MusicTools\fluidsynth-v2.6.2-win10-x64-cpp11\bin'
+$midi = 'bin/Release/Data/PINBALL.MID'
+$tracks = @{
+    'GeneralUser-GS.sf2' = 'GS'
+    'Arachno SoundFont - Version 1.0.sf2' = 'Arachno'
+    'FluidR3_GM.sf2' = 'FluidR3-GM'
+    'TimGM6mb.sf2' = 'TimGM6mb'
+}
+foreach ($track in $tracks.GetEnumerator()) {
+    python tools/render_bonus_music.py --midi $midi --sf2 (Join-Path $banks $track.Key) --bin $synth --out "bin/Release/Music/SpaceCadet-$($track.Value).ogg"
+    if ($LASTEXITCODE) { throw "Render failed for $($track.Key)" }
+}
+```
+
+The renderer identifies the approved SF2 inputs by SHA-256. Each output contains 2,804,869 stereo frames at 48 kHz. All four use the same effects-tail warm-up and 20 ms loop transition. The three alternate renders use a fixed gain per bank to match the GeneralUser recording. No sound device, FFmpeg or extra Python packages are required.
+
+## GeneralUser GS reference recording
 
 The packaged recording is `Game/Music/SpaceCadet-GS.ogg`. The original score, `Game/Data/PINBALL.MID`, is a type 1 Standard MIDI File with 480 ticks per quarter note. Its metadata lists the title **ROCK2.MID #3** and the instrument tag **X5DR**. The recording uses S. Christian Collins's GeneralUser GS v2.0.3.
 

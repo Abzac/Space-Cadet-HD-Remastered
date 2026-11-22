@@ -313,5 +313,5 @@ struct optionsStruct
 	BoolOption StickPlunger;
 	BoolOption StickNudge;
 	BoolOption ResumeCountdown;
-	BoolOption GeneralUserMusic;
+	IntOption MusicBank;
 };

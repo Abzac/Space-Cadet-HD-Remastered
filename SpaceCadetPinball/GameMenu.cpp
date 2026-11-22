@@ -154,12 +154,21 @@ namespace
 		if (ImGui::SliderInt("##music",&opt.MusicVolume.V,0,MIX_MAX_VOLUME)) midi::SetVolume(opt.MusicVolume);
 		if (music && midi::HasInstrumentChoice())
 		{
-			const char* banks[] = {tr("Исходный MIDI", "Original MIDI"), "GeneralUser GS"};
-			int bank = opt.GeneralUserMusic ? 1 : 0;
+			const char* names[midi::BankCount] = {tr("Исходный MIDI", "Original MIDI"), "GeneralUser GS",
+				"Arachno", "FluidR3 GM", "TimGM6mb"};
+			const char* labels[midi::BankCount];
+			int ids[midi::BankCount], count = 0, selected = 0;
+			for (int id = 0; id < midi::BankCount; ++id)
+			{
+				if (!midi::BankAvailable(id)) continue;
+				if (id == midi::SelectedBank()) selected = count;
+				ids[count] = id;
+				labels[count++] = names[id];
+			}
 			ImGui::TextUnformatted(tr("Банк инструментов", "Instrument bank"));
 			ImGui::SetNextItemWidth(-1);
-			if (ImGui::Combo("##musicBank", &bank, banks, 2))
-				midi::SelectGeneralUser(bank == 1);
+			if (ImGui::Combo("##musicBank", &selected, labels, count))
+				midi::SelectBank(ids[selected]);
 		}
 	}
 	void selectScores(bool meditative)

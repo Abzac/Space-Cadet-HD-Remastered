@@ -127,8 +127,8 @@ void winmain::SetWindowSize(int width, int height)
 
 void winmain::UpdateWindowTitle()
 {
-	SDL_SetWindowTitle(MainWindow, pb::FairMode ? wording("Space Cadet HD 7.0.2 — Медитативный режим","Space Cadet HD 7.0.2 — Meditative mode") :
-		wording("Space Cadet HD 7.0.2 — Классика","Space Cadet HD 7.0.2 — Classic"));
+	SDL_SetWindowTitle(MainWindow, pb::FairMode ? wording("Space Cadet HD Remastered 7.1 — Медитативный режим","Space Cadet HD Remastered 7.1 — Meditative mode") :
+		wording("Space Cadet HD Remastered 7.1 — Классика","Space Cadet HD Remastered 7.1 — Classic"));
 }
 
 constexpr const char* winmain::Version;

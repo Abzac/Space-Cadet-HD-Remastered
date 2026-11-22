@@ -1,4 +1,4 @@
-"""Rebuild the optional GeneralUser GS recording from the original Standard MIDI File.
+"""Render a packaged soundtrack from the original MIDI and a supported SoundFont.
 
 Requires 64-bit Python 3 and the Windows FluidSynth 2.6.2 release's bin directory.
 No audio device, third-party Python modules, or network connection is used.
@@ -17,6 +17,13 @@ import tempfile
 RATE = 48000
 MIDI_SHA = "b030f95b0d3b7b582a8c030ce548e11ab9457e2281f615af1e291401ffb0be41"
 BANK_SHA = "9575028c7a1f589f5770fccc8cff2734566af40cd26ed836944e9a5152688cfe"
+# Fixed gain in dB for each pinned bank, measured against the GeneralUser GS
+# loop at approximately -18.8 LUFS. A single gain preserves its dynamics.
+BANK_GAIN_DB = {
+    "9a57fb3b6714e69dda12390e351b087e81fc3b1eca15c6b4bbe172799f4cf3cd": 6.46,
+    "74594e8f4250680adf590507a306655a299935343583256f3b722c48a1bc1cb0": 8.60,
+    "c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854": 9.12,
+}
 
 
 def variable_length(data, offset):
@@ -253,9 +260,11 @@ def main():
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--inspect", action="store_true", help="Also print source MIDI event summary")
     args = parser.parse_args()
-    for filename, expected in [(args.midi, MIDI_SHA), (args.sf2, BANK_SHA)]:
-        if hashlib.sha256(filename.read_bytes()).hexdigest() != expected:
-            raise ValueError("Input has changed: " + str(filename))
+    if hashlib.sha256(args.midi.read_bytes()).hexdigest() != MIDI_SHA:
+        raise ValueError("Unexpected MIDI score: " + str(args.midi))
+    bank_hash = hashlib.sha256(args.sf2.read_bytes()).hexdigest()
+    if bank_hash != BANK_SHA and bank_hash not in BANK_GAIN_DB:
+        raise ValueError("Unrecognised SoundFont: " + str(args.sf2))
     ppqn, events = read_midi(args.midi)
     if args.inspect:
         inspect_midi(events)
@@ -265,7 +274,10 @@ def main():
     with os.add_dll_directory(str(bin_dir)):
         pcm = synthesize(bin_dir, args.sf2.resolve(), intro, loop)
         peak = max(map(abs, pcm))
-        gain = (10 ** (-3/20)) / peak
+        if bank_hash == BANK_SHA:
+            gain = (10 ** (-3/20)) / peak
+        else:
+            gain = C.c_float(10 ** (BANK_GAIN_DB[bank_hash] / 20)).value
         for k in range(len(pcm)):
             pcm[k] *= gain
         with tempfile.TemporaryDirectory(dir=args.out.parent) as tmpdir:
@@ -273,7 +285,7 @@ def main():
             encode(bin_dir, pending, pcm)
             stable_serial(pending)
             os.replace(pending, args.out)
-    print(f"{len(pcm)//2} frames at {RATE} Hz; gain {20*math.log10(gain):+.3f} dB; PCM peak -3.00 dBFS")
+    print(f"{len(pcm)//2} frames at {RATE} Hz; gain {20*math.log10(gain):+.3f} dB; PCM peak {20*math.log10(peak*gain):.2f} dBFS")
     print("SHA-256", hashlib.sha256(args.out.read_bytes()).hexdigest())
 
 

@@ -171,7 +171,7 @@ optionsStruct options::Options
 	{"Analog plunger", true},
 	{"Stick nudge", true},
 	{"Resume countdown", true},
-	{"GeneralUser music bank", true},
+	{"GeneralUser music bank", 1}, // Preserve 7.0.x profile IDs: MIDI (0) and GeneralUser GS (1).
 };
 
 void options::InitPrimary()

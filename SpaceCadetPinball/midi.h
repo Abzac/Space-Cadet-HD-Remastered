@@ -100,13 +100,16 @@ public:
 	static void music_stop();
 	static void SetVolume(int volume);
 	static bool HasInstrumentChoice();
-	static void SelectGeneralUser(bool enabled);
+	static constexpr int BankCount = 5;
+	static bool BankAvailable(int bank);
+	static int SelectedBank();
+	static void SelectBank(int bank);
 	static bool play_track(MidiTracks track, bool replay);
 	static MidiTracks get_active_track();
 private:
 	static std::vector<Mix_Music*> LoadedTracks;
 	static Mix_Music* track1, * track2, * track3;
-	static Mix_Music* generalUserTheme;
+	static Mix_Music* themes[BankCount];
 	static MidiTracks active_track, NextTrack;
 	static int Volume;
 	static bool IsPlaying, MixOpen;

@@ -192,9 +192,9 @@ bool VerifyGame(const std::string& directory, bool mixOpened, void (*drawUi)())
     }
     if (SDL_GetHintBoolean("SPACECADET_VERIFY_MUSIC",SDL_FALSE))
     {
-        check("both packaged instrument banks are available", mixOpened && midi::HasInstrumentChoice());
+        check("packaged instrument banks are available", mixOpened && midi::HasInstrumentChoice());
         check("fresh profile uses GeneralUser GS at 64 and table sounds at 128, music initially off",
-              options::Options.GeneralUserMusic && !options::Options.Music && options::Options.Sounds &&
+              options::Options.MusicBank.V == 1 && !options::Options.Music && options::Options.Sounds &&
               options::Options.MusicVolume.V == 64 && options::Options.SoundVolume.V == 128 && Mix_VolumeMusic(-1) == 64);
         midi::music_stop();
         check("bank is silent until enabled", !Mix_PlayingMusic());
@@ -207,10 +207,28 @@ bool VerifyGame(const std::string& directory, bool mixOpened, void (*drawUi)())
         const auto loopPosition = Mix_GetMusicPosition(nullptr);
         fprintf(report, "GeneralUser loop duration %.4f s, playback position after crossing loop %.4f s.\n", duration, loopPosition);
         check("Vorbis theme plays and loops at its musical boundary", nearEnd && Mix_PlayingMusic() && loopPosition >= 0 && loopPosition < 2.);
-        midi::SelectGeneralUser(false);
+        for (int bank = 2; bank < midi::BankCount; ++bank)
+        {
+            check("packaged sound bank is selectable", midi::BankAvailable(bank));
+            Mix_SetMusicPosition(12.0);
+            midi::SelectBank(bank);
+            const double position = Mix_GetMusicPosition(nullptr);
+            check("live switch retains track, volume and loop position", midi::SelectedBank() == bank &&
+                  Mix_GetMusicType(nullptr) == MUS_OGG && Mix_PlayingMusic() && position >= 11.8 &&
+                  position < 13 && Mix_VolumeMusic(-1) == 64 && Mix_MusicDuration(nullptr) > 58.0);
+        }
+        Mix_SetMusicPosition(23.0);
+        midi::music_stop();
+        midi::SelectBank(2);
+        check("changing banks while paused stays silent", !Mix_PlayingMusic());
+        midi::music_play();
+        check("resuming with a different recording keeps the phrase position",
+              midi::SelectedBank() == 2 && Mix_GetMusicPosition(nullptr) >= 22.8 &&
+              Mix_GetMusicPosition(nullptr) < 24.0);
+        midi::SelectBank(0);
         check("original MIDI is playable on the same logical track", Mix_PlayingMusic() && Mix_GetMusicType(nullptr) == MUS_MID && midi::get_active_track() == MidiTracks::Track1);
         midi::music_stop();
-        midi::SelectGeneralUser(true);
+        midi::SelectBank(1);
         midi::music_play();
         check("pause and resume retain selected bank", Mix_PlayingMusic() && Mix_GetMusicType(nullptr) == MUS_OGG);
         midi::music_stop();
@@ -261,7 +279,7 @@ bool VerifyGame(const std::string& directory, bool mixOpened, void (*drawUi)())
         else if (strcmp(scoreTest,"settings-write")==0)
         {
             check("a new profile enables the resume countdown by default", options::Options.ResumeCountdown.V);
-            check("new profiles select GeneralUser GS at half volume", options::Options.GeneralUserMusic && options::Options.MusicVolume.V == 64);
+            check("new profiles select GeneralUser GS at half volume", options::Options.MusicBank.V == 1 && options::Options.MusicVolume.V == 64);
             inputChecks::tap(SDLK_F3);
             inputChecks::tap(SDLK_ESCAPE);
             auto menuFrame = [&]() { capture("",drawUi,false); };
@@ -301,7 +319,7 @@ bool VerifyGame(const std::string& directory, bool mixOpened, void (*drawUi)())
                     menuKey(SDLK_UP); menuKey(SDLK_SPACE);
                 }
                 check("instrument bank can be changed in the Russian settings with the keyboard",
-                      options::Options.Music && !options::Options.GeneralUserMusic);
+                      options::Options.Music && options::Options.MusicBank.V == 0);
             }
             inputChecks::tap(SDLK_ESCAPE); inputChecks::tap(SDLK_ESCAPE);
             check("Space navigates the settings menu above an F3 pause without resuming the table",
@@ -316,7 +334,7 @@ bool VerifyGame(const std::string& directory, bool mixOpened, void (*drawUi)())
             if (midi::HasInstrumentChoice())
                 check("a fresh process restores the HD edge preference", !options::Options.SmoothSilhouettes);
             if (midi::HasInstrumentChoice())
-                check("a fresh process restores the user's original MIDI selection", !options::Options.GeneralUserMusic.V);
+                check("a fresh process restores the user's original MIDI selection", options::Options.MusicBank.V == 0);
         }
         else if (strcmp(scoreTest,"write")==0)
         {
