@@ -88,6 +88,13 @@ python tools/render_bonus_music.py --midi bin/Release/Data/PINBALL.MID --sf2 'D:
 
 Scores, bindings and settings are stored in `%APPDATA%\SpaceCadetHD\imgui_pb.ini`. For implementation details, see the [physics notes](PHYSICS-HD7.md) and [mixer measurements](AUDIO-HD7.md).
 
+## Roadmap
+
+Windows x64 is the verified platform for 7.0.2. Future platform work includes:
+
+- Bring the SDR remaster to Linux and macOS and verify window and fullscreen behaviour, controller input and audio on each platform.
+- Explore a PortMaster release for Linux-based retro handhelds, with particular attention to playfield readability and rendering performance on small screens.
+
 ## Where it comes from
 
 The engine license covers its source code. Original game assets, title artwork and third-party projects retain their respective notices. The Real-ESRGAN license is included in `tools/Real-ESRGAN-LICENSE.txt`. Screenshots show the remaster running with the original game data.
