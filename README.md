@@ -4,6 +4,18 @@
 
 ![The Space Cadet table during play, with the original backglass layout and live mission display](docs/screenshots/table.webp)
 
+## At a glance
+
+- **4× upscaled artwork** with HDR and SDR support.
+- **Dynamic lighting** with lamp reflections on the steel ball.
+- **Original scoring, missions and table geometry** in Classic mode.
+- **Refined physics** with more precise rebounds, flipper sweeps and ball spin.
+- **Smoother animations** for spinners and the plunger spring.
+- **4× as many sound-effect channels** (8 → 32), with all 60 original effects.
+- **Two music options** — original MIDI or the GeneralUser GS soundtrack.
+- **Controller support** for Xbox, DualShock 4, DualSense and Steam Input.
+- **Optional Meditative mode** with unlimited fuel and rearming kickbacks.
+
 The artwork may feel unfamiliar on the first launch, especially if you know the Windows table by heart. Give it a ball or two. The old routes, sounds and lamp cues are good landmarks while your eye adjusts to the new materials.
 
 The screenshots on this page were captured in SDR from version **7.0.2**. On an HDR display, the lamps and dot-matrix displays have additional brightness headroom.
