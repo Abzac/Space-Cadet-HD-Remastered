@@ -1,4 +1,4 @@
-# Space Cadet HD
+# Space Cadet HD Remastered
 
 **A Windows remaster of 3D Pinball: Space Cadet.** The mission targets still drop with the same clack, the arrows still lead you to the launch ramp, and an ill-timed flip can still cost you the ball. The difference is easiest to see in motion. Send the ball past a lit bumper and watch its colour travel across the polished steel.
 
@@ -60,6 +60,8 @@ Xbox controllers, PlayStation DualShock 4 and DualSense, and standard controller
 
 ## Run or build on Windows x64
 
+Windows x64 is the verified platform for 7.0.2. Linux and macOS builds are experimental and untested. You may encounter build errors or differences in fullscreen behaviour, input and audio. The HDR output currently requires Windows.
+
 The repository contains the engine, remastered artwork masters and build recipes. Supply the original Windows game data from your own installation. The original executable, WAV effects, MIDI score and game DAT are distributed separately from this source tree.
 
 1. Install Visual Studio 2022 with the Desktop development with C++ workload, the Windows SDK and CMake.
@@ -90,7 +92,7 @@ Scores, bindings and settings are stored in `%APPDATA%\SpaceCadetHD\imgui_pb.ini
 
 ## Roadmap
 
-Windows x64 is the verified platform for 7.0.2. Future platform work includes:
+Future platform work includes:
 
 - Bring the SDR remaster to Linux and macOS and verify window and fullscreen behaviour, controller input and audio on each platform.
 - Explore a PortMaster release for Linux-based retro handhelds, with particular attention to playfield readability and rendering performance on small screens.
@@ -99,4 +101,4 @@ Windows x64 is the verified platform for 7.0.2. Future platform work includes:
 
 The engine license covers its source code. Original game assets, title artwork and third-party projects retain their respective notices. The Real-ESRGAN license is included in `tools/Real-ESRGAN-LICENSE.txt`. Screenshots show the remaster running with the original game data.
 
-Space Cadet HD is a fork of k4zmu2a's **SpaceCadetPinball**, the reverse-engineered engine for *3D Pinball for Windows – Space Cadet*. Its reconstruction makes it possible to keep the original table logic and build the remaster around it. The source snapshot is `cb9b7b886244a27773f66b0b19fdc2998392565e`. The source tree preserves the upstream history and credits in `README-upstream.md` and the engine's MIT terms in `LICENSE`. [Upstream project](https://github.com/k4zmu2a/SpaceCadetPinball)
+Space Cadet HD Remastered is a fork of k4zmu2a's **SpaceCadetPinball**, the reverse-engineered engine for *3D Pinball for Windows – Space Cadet*. Its reconstruction makes it possible to keep the original table logic and build the remaster around it. The source snapshot is `cb9b7b886244a27773f66b0b19fdc2998392565e`. For the engine's history, credits and MIT terms, see the [upstream project notes](docs/upstream-project.md), [license](LICENSE) and [original repository](https://github.com/k4zmu2a/SpaceCadetPinball).
