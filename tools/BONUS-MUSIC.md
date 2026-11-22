@@ -1,10 +1,10 @@
-# Музыка Space Cadet в исполнении GeneralUser GS
+# The Space Cadet theme on GeneralUser GS
 
-В игре готовая запись лежит в `Game/Music/SpaceCadet-GS.ogg`. Исходная партитура — `Game/Data/PINBALL.MID`, Standard MIDI File типа 1, 480 тиков на четверть. Название из метаданных — **ROCK2.MID #3**. Инструментальный тег — **X5DR**. Для бонусной записи использован GeneralUser GS v2.0.3 С. Кристиана Коллинза.
+The packaged recording is `Game/Music/SpaceCadet-GS.ogg`. The original score, `Game/Data/PINBALL.MID`, is a type 1 Standard MIDI File with 480 ticks per quarter note. Its metadata lists the title **ROCK2.MID #3** and the instrument tag **X5DR**. The recording uses S. Christian Collins's GeneralUser GS v2.0.3.
 
-## Повторная сборка из Recovery
+## Rebuilding the track from the recovery archive
 
-Откройте PowerShell в каталоге распакованного Recovery, в котором находятся `Game`, `Art` и `Source`. Нужен 64-разрядный Python 3.8 или новее для Windows. Дополнительные модули Python не требуются. Команды используют комплектные библиотеки и записывают результат отдельно от готовой музыки.
+Open PowerShell in the extracted recovery directory containing `Game`, `Art` and `Source`. Use 64-bit Python 3.8 or later on Windows. The commands below use the bundled libraries, require no additional Python packages and write the result to a separate directory.
 
 ```powershell
 Expand-Archive -LiteralPath Art/Music/fluidsynth-v2.6.2-win10-x64-cpp11.zip -DestinationPath RebuiltMusic/Synth -Force
@@ -12,38 +12,38 @@ python Source/tools/render_bonus_music.py --midi Game/Data/PINBALL.MID --sf2 Art
 Get-FileHash RebuiltMusic/SpaceCadet-GS.ogg, Game/Music/SpaceCadet-GS.ogg -Algorithm SHA256
 ```
 
-Скрипт проверяет хеши двух входных ресурсов и идентичность всех девяти музыкальных повторов. Флаг `--inspect` выводит метаданные, число нот и значения контроллеров. Звуковое устройство при рендере не открывается. В кодировщик поступает стереосигнал напрямую из FluidSynth через libsndfile 1.2.2 из того же архива. FFmpeg для сборки не нужен.
+The script checks both input hashes and verifies that all nine repeats are identical. Use `--inspect` to print metadata, note counts and controller values. FluidSynth sends stereo audio directly to the encoder through libsndfile 1.2.2 from the same archive. Rendering requires neither an audio device nor FFmpeg.
 
-| Файл | SHA-256 |
+| File | SHA-256 |
 |---|---|
 | PINBALL.MID | `b030f95b0d3b7b582a8c030ce548e11ab9457e2281f615af1e291401ffb0be41` |
 | GeneralUser-GS.sf2 | `9575028c7a1f589f5770fccc8cff2734566af40cd26ed836944e9a5152688cfe` |
 | fluidsynth-v2.6.2-win10-x64-cpp11.zip | `808295345d43c9c428f3fa87d29fbf97a9926f356df95559ff2689f3bd4072d7` |
 | SpaceCadet-GS.ogg | `bcd08bdae97104654ce455c695d5a491ef9e03b724be5fa537f7004f8a2ba5dd` |
 
-## Партии и исполнение
+## Parts and performance
 
-Таблица использует номера каналов 1–16 и номера программ 0–127. Числа в столбцах **Reverb** и **Chorus** — исходные значения посылов CC91 и CC93 в диапазоне 0–127. **Pan** — CC10, где 64 соответствует центру.
+Channels are numbered 1–16 and programs 0–127. **Reverb** and **Chorus** show the original CC91 and CC93 send levels (0–127). **Pan** is CC10, with 64 at the center.
 
-| Канал | Звучащий инструмент GM | Нот за цикл | Уровень CC7 | Pan | Reverb | Chorus |
+| Channel | GM instrument played | Notes per loop | Volume (CC7) | Pan | Reverb | Chorus |
 |---|---|---:|---:|---:|---:|---:|
 | 2 | 38 — Synth Bass 1 | 234 | 127 | 64 | 29 | 0 |
-| 3 | 11 — Vibraphone (дорожка названа Xyl) | 127 | 55 | 41 | 92 | 0 |
+| 3 | 11 — Vibraphone (track name: Xyl) | 127 | 55 | 41 | 92 | 0 |
 | 4 | 28 — Electric Guitar (muted) | 446 | 105 | 74 | 115 | 81 |
-| 10 | Standard Kit, 11 клавиш ударных | 764 | 100 | По умолчанию | 79 | 0 |
+| 10 | Standard Kit, 11 drum keys | 764 | 100 | Default | 79 | 0 |
 
-Бас меняет высоту с помощью 53 сообщений pitch bend за фразу. Исходная велосити каждой ноты сохранена. Вибрафон смещён влево, гитара — слегка вправо. Все четыре партии используют реверберацию. Хорус особенно заметен в настройках гитары. Используются эффектные посылы соответствующих инструментов банка и настройки эффектов FluidSynth 2.6.2.
+The bass uses 53 pitch-bend messages per phrase. Each note retains its original velocity. The vibraphone sits left of center and the guitar slightly to the right. All four parts use reverb, and the guitar has a pronounced chorus send. The render uses the sound bank's instrument sends and the FluidSynth 2.6.2 effects settings.
 
-## Граница цикла и уровни
+## Loop boundary and levels
 
-Исходные 527,912912 секунды состоят из двухсекундного служебного такта и девяти одинаковых фраз 4/4. Темп задан точно как 521 739 мкс на четверть (приблизительно 115 BPM). Одна фраза — 28 тактов, 53 760 тиков, 58,434768 секунды. Начало OGG совпадает с началом музыкального такта. Первый проход синтезируется для подготовки затуханий, сохраняется следующий. Косинусный переход длительностью 20 мс стыкует его окончание с хвостом предыдущего прохода. Последняя нота отпускается примерно за 40 мс до границы. Атаки новых нот в переход не попадают.
+The 527.912912-second source contains a two-second setup bar and nine identical phrases in 4/4. The tempo is exactly 521,739 microseconds per quarter note (about 115 BPM). Each phrase spans 28 bars, or 53,760 ticks, and lasts 58.434768 seconds. The Ogg starts on the downbeat. The renderer plays one pass to establish effect tails and saves the next. A 20 ms cosine crossfade joins the ending to the tail from the previous pass. The last note releases about 40 ms before the boundary, keeping new note attacks outside the crossfade.
 
-Синтез идёт в стерео при 48 000 Гц с интерполяцией седьмого порядка, 256 голосами и включёнными штатными ревербератором и хорусом. Исходный synth gain равен 0,2. Перед кодированием к обоим каналам применяется одно усиление +9,906 дБ, что даёт пик −3,00 dBFS. Кодек — Ogg Vorbis VBR с качеством 0,72, средняя скорость файла около 248 кбит/с.
+The stereo render runs at 48,000 Hz with seventh-order interpolation, 256 voices and the built-in reverb and chorus enabled. Synth gain starts at 0.2. Before encoding, both channels receive the same +9.906 dB gain, bringing the peak to −3.00 dBFS. Ogg Vorbis encodes at VBR quality 0.72, averaging about 248 kbit/s.
 
-Декодированная запись имеет 2 804 869 стереоотсчётов, длительность 58,434771 с, интегральную громкость −18,8 LUFS, LRA 2,9 LU и измеренный истинный пик −3,1 dBTP. Перепад между последним и первым отсчётами составляет 0,0093 полной шкалы слева и 0,0152 справа. Размер файла — 1 813 837 байт. Два независимых рендера дали одинаковый SHA-256.
+The decoded recording contains 2,804,869 stereo frames and runs for 58.434771 seconds. Integrated loudness is −18.8 LUFS, loudness range is 2.9 LU and measured true peak is −3.1 dBTP. The step from the last sample to the first measures 0.0093 of full scale on the left and 0.0152 on the right. The file is 1,813,837 bytes. Two independent renders produced the same SHA-256 hash.
 
-## Ресурсы и происхождение
+## Assets and credits
 
-- Восстановительный комплект содержит банк, полный текст `Art/Music/GeneralUser-license.txt`, запись коммита в `Art/Music/generaluser.commit` и архив бинарных инструментов. Лицензии инструментов находятся в `Art/Music/tool-licenses`.
-- Банк GeneralUser GS v2.0.3, автор S. Christian Collins, коммит `684543d5e5efaef08d02be50dcda8d552478fa60`. [Репозиторий банка](https://github.com/mrbumpy409/GeneralUser-GS/tree/684543d5e5efaef08d02be50dcda8d552478fa60)
-- Официальная сборка **FluidSynth 2.6.2 win10-x64-cpp11** поставляет `libfluidsynth-3.dll`, `sndfile.dll` и зависимости. [Релиз FluidSynth](https://github.com/FluidSynth/fluidsynth/releases/tag/v2.6.2) · [Исходники libsndfile](https://github.com/libsndfile/libsndfile/tree/1.2.2)
+- The recovery kit includes the sound bank, its full license in `Art/Music/GeneralUser-license.txt`, the commit recorded in `Art/Music/generaluser.commit` and an archive of the binary tools. Tool licenses are in `Art/Music/tool-licenses`.
+- GeneralUser GS v2.0.3 by S. Christian Collins, commit `684543d5e5efaef08d02be50dcda8d552478fa60`. [Sound bank repository](https://github.com/mrbumpy409/GeneralUser-GS/tree/684543d5e5efaef08d02be50dcda8d552478fa60)
+- The official **FluidSynth 2.6.2 win10-x64-cpp11** build supplies `libfluidsynth-3.dll`, `sndfile.dll` and their dependencies. [FluidSynth release](https://github.com/FluidSynth/fluidsynth/releases/tag/v2.6.2) · [libsndfile source](https://github.com/libsndfile/libsndfile/tree/1.2.2)

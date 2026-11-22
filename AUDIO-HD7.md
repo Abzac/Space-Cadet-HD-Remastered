@@ -1,42 +1,42 @@
-# Звук Space Cadet HD 7.0
+# Space Cadet HD 7.0 audio
 
-По умолчанию микшер может одновременно воспроизвести 32 эффекта. На выходе остаётся стерео. Оригинальные 60 WAV совпали байт в байт с файлами из установленного Space Cadet. Все записи одноканальные, PCM 8 бит без знака, 11 025 Гц. Самый короткий эффект длится 58 мс, самый длинный — 5,02 с. Именно такие записи получает SDL. Громкость музыки и эффектов регулируется раздельно.
+The mixer plays up to 32 simultaneous effects by default and outputs stereo. All 60 WAV files matched the installed Space Cadet originals byte for byte. SDL receives the original mono, unsigned 8-bit PCM at 11,025 Hz. Effects range from 58 ms to 5.02 seconds. Music and effects have separate volume controls.
 
-## Что меняется на слух
+## What you can hear
 
-Когда во время бонусного сигнала почти одновременно щёлкают флипперы и срабатывают бамперы, больше звуков доигрывают до конца. Если заняты даже все 32 голоса, следующий эффект вытесняет самый старый. Порядок запуска сохраняется и у нескольких событий в одном игровом такте.
+When flippers click and bumpers fire over a bonus cue, more sounds play to completion. Once all 32 voices are busy, the next effect replaces the oldest. Events that start on the same game tick retain their playback order.
 
-В 6.3.2 микшер складывал уже декодированные удары в 16-битном целочисленном формате. Громкие сочетания могли упереться в предел сигнала ещё при сложении. В 7.0 эффекты и музыка программного проигрывателя суммируются в float32. Ограничитель использует один коэффициент для левого и правого каналов и срабатывает при превышении полной шкалы. Он видит 64 стереокадра вперёд и плавно отпускает усиление. При 44,1 кГц это добавляет 1,45 мс к тракту. Блок устройства запрашивается по-прежнему на 1 024 кадра. Если открыть float-устройство не удаётся, игра пробует прежнее 16-битное стерео.
+In 6.3.2, the mixer summed decoded hits as 16-bit integers, so loud combinations could clip during mixing. In 7.0, effects and software-decoded music are summed in float32. A limiter applies the same gain to both channels when the signal exceeds full scale. It looks ahead 64 stereo frames and releases the gain reduction smoothly. This adds 1.45 ms at 44.1 kHz. The requested device block size remains 1,024 frames. If the float device cannot be opened, the game tries 16-bit stereo.
 
-Одиночный исходный удар SOUND112 дал 0,164107 полной шкалы до и после защиты. После выравнивания задержки все отсчёты совпали. В искусственной проверке 32 одновременных копий того же WAV дали 5,251430 полной шкалы на входе ограничителя и 0,999900 на выходе. В отдельной проверке импульс с амплитудой 3,0 вернулся к единичному усилению за 53,76 мс. Соотношение уровней слева и справа при этом сохранилось.
+A single SOUND112 hit peaked at 0.164107 of full scale both before and after limiting. After compensating for the delay, every sample matched. In a stress test, 32 simultaneous copies of the same WAV peaked at 5.251430 of full scale at the limiter input and 0.999900 at the output. In a separate test with a pulse of amplitude 3.0, gain returned to unity in 53.76 ms, preserving the left-to-right level ratio.
 
-В стандартной конфигурации монофонические эффекты идут в центр. Если в профиле включено `Stereo Sound Effects`, громкость зависит от расстояния до игрока, а положение источника определяет баланс между колонками. В поставляемой SDL_mixer 2.8.1 функция `Mix_SetPosition` при float32 ошиблась в проверке одного WAV под углами +60° и −60°. Максимальный уровень оба раза оказался справа. В режиме S16 направление было верным. В 7.0 для float32 игра задаёт усиление каждой стороны и дистанцию отдельно. Параметры выставляются до первого отсчёта новой дорожки. [Панорама](https://wiki.libsdl.org/SDL2_mixer/Mix_SetPanning) и [расстояние в SDL_mixer](https://wiki.libsdl.org/SDL2_mixer/Mix_SetDistance).
+Mono effects normally play in the center. With `Stereo Sound Effects` enabled in the profile, distance from the player sets the level and source position sets the stereo balance. In a float32 test of the bundled SDL_mixer 2.8.1, `Mix_SetPosition` placed the louder channel on the right for the same WAV at both +60° and −60°. S16 panned correctly. For float32, 7.0 sets the left and right gains and the distance separately before the first sample of a new voice. [SDL_mixer panning](https://wiki.libsdl.org/SDL2_mixer/Mix_SetPanning) · [SDL_mixer distance](https://wiki.libsdl.org/SDL2_mixer/Mix_SetDistance)
 
-Встроенная проверка направила в движок стереосигнал уровня 0,25 с одинаковым содержимым слева и справа. После микширования для переднего левого источника получилось 0,1863 / 0,0935, для переднего правого — 0,0935 / 0,1863. Задние зеркальные положения дали ту же соответствующую панораму на двух колонках. Для центрального источника при удалении уровень уменьшился с 0,1931 до 0,1412. После выключения позиционирования и повторного использования той же занятой дорожки оба выхода вернулись точно к 0,25.
+The built-in test fed identical left and right signals at 0.25 into the engine. The front-left source produced levels of 0.1863 / 0.0935 and the front-right source produced 0.0935 / 0.1863. Mirrored rear positions gave the corresponding stereo balance. Moving a centered source farther away reduced its level from 0.1931 to 0.1412. After positioning was disabled and the same busy voice was reused, both outputs returned to exactly 0.25.
 
-Дополнительного эха или комнатной реверберации в тракте эффектов исходного порта не обнаружено. Наложения и хвосты, уже записанные в WAV, воспроизводятся с самим звуком. Используются поставляемые SDL 2.32.10 и SDL_mixer 2.8.1.
+The original port's effects path showed no added echo or room reverb. Overlaps and tails recorded in the WAV files play as recorded. The build uses SDL 2.32.10 and SDL_mixer 2.8.1.
 
-## Нагрузка игрового стола
+## Table workload
 
-Каждая строка объединяет три автоматические партии по 180 игровых секунд с начальными значениями 71903, 71904 и 71905. Во второй серии к обычной демоигре добавлялись движения обоих флипперов по 4 раза в секунду короткими сериями по 1,5 с каждые 9 с. Для каждого запущенного WAV записывались игровой такт и реальная длительность декодированного звука. Одновременность и сумму отсчётов восстановили по этим данным с частотой игры 120 Гц. Это исключает ложную перегрузку, возникающую при ускоренной физике и звуковом устройстве на обычных часах.
+Each scenario combines three automated 180-second games with seeds 71903, 71904 and 71905. The second scenario added bursts of four strokes per second on both flippers for 1.5 seconds every 9 seconds. Each WAV onset was logged with its game tick and actual decoded duration. Voice overlap and sample sums were reconstructed on the game's 120 Hz clock, avoiding the false overload that occurs when physics runs faster than the audio device clock.
 
-| Сценарий | Эффекты | Максимум одновременно | Вытеснения при 8 / 12 / 16 / 32 голосах |
+| Scenario | Effects started | Peak simultaneous effects | Voices replaced at limits of 8 / 12 / 16 / 32 |
 | --- | ---: | ---: | ---: |
-| Обычная демоигра | 934 | 11 | 16 / 0 / 0 / 0 |
-| Демоигра с сериями флипперов | 2 217 | 13 | 31 / 3 / 0 / 0 |
-| Всего за 18 игровых минут | 3 151 | 13 | 47 / 3 / 0 / 0 |
+| Normal demo play | 934 | 11 | 16 / 0 / 0 / 0 |
+| Demo play with flipper bursts | 2,217 | 13 | 31 / 3 / 0 / 0 |
+| Total over 18 minutes of play | 3,151 | 13 | 47 / 3 / 0 / 0 |
 
-При полной громкости и центральном положении всех источников расчётные пики отдельных партий составили 3,04–3,55 полной шкалы. От 0,35% до 0,68% кадров в этих партиях вышли бы за её границы без защиты. Это расчёт для фиксированной громкости без музыки. Отдельно данные настоящего аудиовызова SDL подтвердили воспроизведение 32 голосов, ограничение пиков и правильное вытеснение старейших звуков после заполнения всех каналов. Выборка партий не задаёт верхнюю границу числа событий при игре человеком.
+With every source centered at full volume, calculated peaks for individual games ranged from 3.04 to 3.55 times full scale. Without limiting, 0.35% to 0.68% of frames would have clipped. These figures assume fixed volume with music off. A separate test of the actual SDL audio callback confirmed 32-voice playback, peak limiting and replacement of the oldest sounds when all voices were occupied. Human play may produce more simultaneous events than this sample.
 
-## Музыка и перенос настроек
+## Music and profile migration
 
-PINBALL.MID — исходная партитура Standard MIDI File типа 1, пять дорожек, 480 делений на четверть. PINBALL2.MID содержит растровый шрифт. При обычном воспроизведении оригинального MIDI Windows может использовать системный синтезатор WinMM, который выводит звук отдельно от SDL. Его уровень регулирует сам MIDI-проигрыватель. Музыка в формате Ogg проходит через общий стереомикшер вместе с эффектами.
+PINBALL.MID is the original type 1 Standard MIDI File, with five tracks and 480 ticks per quarter note. PINBALL2.MID contains a bitmap font. For normal playback of the original MIDI on Windows, the game can use the WinMM system synthesizer, which has a separate output from SDL. The MIDI player controls its volume. Ogg music shares the stereo mixer with the effects.
 
-Игра запоминает количество голосов. Профиль версии 6.x со стандартным записанным значением 8 при первом запуске получает 32. Иное сохранённое значение, например 10, сохраняется. Старый формат профиля одинаково записывал автоматически выставленные и вручную выбранные 8. После первой миграции любое явно записанное значение, включая 8, сохраняется при следующих запусках.
+The game remembers the voice limit. On first launch, a 6.x profile with the old default of 8 migrates to 32. Other saved values, such as 10, carry over. The old profile format recorded a manually selected 8 exactly like the default. After migration, explicitly saved values, including 8, persist across launches.
 
-## Как повторить проверку
+## Reproducing the tests
 
-Запустите в PowerShell из папки дистрибутива. Пустой каталог для тестового профиля должен быть доступен для записи. Оба устройства теста виртуальные. Игра отключает WinMM в режиме проверки, а MIDI читает через программный декодер с пустым банком. Это проверяет чтение партитуры и управление воспроизведением. Тембр аппаратуры и сквозная задержка реального аудиоустройства этими тестами не измеряются.
+Run the commands below in PowerShell from the distribution directory. Use an empty, writable test profile directory. Both test devices are virtual. Verification disables WinMM and reads the MIDI through a software decoder with an empty bank. This checks score parsing and playback controls. It does not measure synthesizer timbre or the end-to-end latency of a physical device.
 
 ```powershell
 $env:SPACECADET_VERIFY_DIR = (New-Item -ItemType Directory -Force ./audio-check).FullName
@@ -48,4 +48,4 @@ $game.ExitCode
 Get-Content -LiteralPath (Join-Path $env:SPACECADET_VERIFY_DIR 'report.txt')
 ```
 
-Тест завершится с кодом 0. На той же Windows контрольный запуск инструментированной сборки 6.3.2 с программным декодером прошёл полностью. Ранее с нативным маршрутом MIDI он завершался кодом 0xC0000374. Это локализует условие сбоя в инструментированной конфигурации. Конкретная причина ошибки памяти с системным синтезатором осталась неустановленной.
+A passing test exits with code 0. On the same Windows system, an instrumented 6.3.2 build completed the full test using the software decoder. A previous run through the native MIDI path exited with 0xC0000374. This narrowed the failure to that configuration, but the cause of the memory error with the system synthesizer remains unknown.

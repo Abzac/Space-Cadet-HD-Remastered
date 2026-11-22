@@ -1,23 +1,23 @@
-# Физика Space Cadet HD 7.0
+# Space Cadet HD 7.0 physics
 
-## Отскок и взмах флиппера
+## Rebounds and flipper sweeps
 
-Внутри шага движок находит первый контакт, доводит свободные шары до момента удара и пересчитывает оставшийся путь с новой скоростью. Замедляющая резина и ускоряющий бампер при одинаковом времени до конца шага теперь дают разную длину пути. Если за это время шар успевает задеть следующий объект, его контакт тоже обрабатывается. При встрече двух шаров учитывается скорость каждого. После попадания в лузу движением шара снова управляет механизм стола.
+Within each step, the engine finds the first contact, advances free balls to the time of impact and calculates the remaining travel using the new velocity. For the same time remaining, a rubber that slows the ball and a bumper that accelerates it now produce different travel distances. The engine also handles any subsequent contact within that time. Ball-to-ball collisions account for both velocities. When a ball enters a sink, the table mechanism takes control of its motion.
 
-Количество промежуточных положений флиппера зависит от величины угла взмаха. Одинаковые углы по и против часовой стрелки получают одинаковое число проверок. Геометрия флипперов и расстояние между их кончиками взяты из игровых данных.
+The number of intermediate flipper positions depends on the sweep angle. Equal clockwise and counterclockwise sweeps get the same number of collision checks. The game data defines the flipper geometry and the gap between the tips.
 
-У шара есть угловая скорость вокруг трёх осей и собственная ориентация. Трение о стол переводит скольжение в качение, а боковая подкрутка меняет направление отскока от направляющей. Микрорельеф стали поворачивается с шаром. Положение лампы и наблюдателя определяет, где на нём виден блик.
+The ball has its own orientation and angular velocity about three axes. Table friction converts sliding into rolling, and sidespin changes the angle of a rebound off a rail. The fine steel grain turns with the ball. The lamp and viewer positions determine where the highlight appears.
 
-## Проверка столкновений
+## Collision tests
 
-На испытательном участке с заранее известной геометрией движок воспроизвёл расчётные координаты при 60, 120 и 240 шагах в секунду. После отскока от стенки с потерей половины скорости шар во всех трёх случаях закончил путь в точке x = −0,0155000. При встречном ударе двух движущихся шаров конечные координаты составили −0,048 и +0,720 с погрешностью до 0,0000001 единицы стола. В отдельном опыте удар по стоящему шару оставлял ему ровно 0,09 единицы пути. Максимальное расхождение также составило 0,0000001. Проверены два последовательных удара в одном шаге, проход через датчик и последующий захват на другом уровне стола.
+On a test surface with known geometry, the engine reproduced the calculated positions at 60, 120 and 240 steps per second. A ball that lost half its speed on hitting a wall finished at x = −0.0155000 at all three rates. Two moving balls in a head-on collision finished at −0.048 and +0.720, within 0.0000001 table units of their expected positions. In a separate test, a ball struck from rest had exactly 0.09 units of travel remaining, with the same maximum error. Tests also covered two successive impacts in one step and a ball crossing a sensor before being captured on another table level.
 
-В игровой проверке обе боковые пружины вернули шар по своей дорожке. В классике каждая сработала один раз, и второй проход завершился сливом. В медитативном режиме каждая сработала три раза подряд. Каждый проход датчика дал 20 000 очков. Автоспасатель застрявшего шара теперь даёт взведённой пружине закончить её штатную задержку. Открытый центр, своевременные удары кончиком и сливы при опоздании проверены в обоих режимах.
+In gameplay tests, both side kickbacks returned the ball along their lanes. In Classic, each fired once and the second pass drained. In Meditative mode, each fired three times in succession. Each sensor crossing scored 20,000 points. The stuck-ball rescue now allows an armed kickback to complete its normal delay. Both modes were tested for an open center drain, well-timed tip hits and late swings that let the ball drain.
 
-## Что почувствует игрок при запуске
+## How launches feel
 
-Сравнивались пять оттяжек кнопкой и четыре правым стиком. Для каждой записи использовались одинаковый ввод и начальное состояние генератора случайных чисел, частота 120 шагов в секунду и две секунды наблюдения после отпускания. Эталон HD 6 побайтно совпал с записью из восстановленной 6.3.2.
+The comparison covered five button pulls and four right-stick pulls. Each run used identical input and random seed, 120 simulation steps per second and two seconds of observation after release. The HD 6 reference matched the trace from a restored 6.3.2 build byte for byte.
 
-Во всех 3296 строках совпали натяжение пружины и порог срабатывания. Значения натяжения при отпускании кнопки составили 5, 21, 51, 90 и 100 единиц. Для стика они составили 19,81, 43,05, 71,26 и 100. Правило стика сохраняет самое глубокое положение даже при частичном возврате перед отпусканием.
+Spring tension and the firing threshold matched across all 3,296 rows. Button pulls released at 5, 21, 51, 90 and 100 units of tension. Stick pulls released at 19.81, 43.05, 71.26 and 100. The stick retains the deepest pull even if it moves partway back before release.
 
-Из восьми опытов, в которых шар вылетел в обеих версиях, скорость в первом кадре вылета отличается от прежней на −6,1…+5,4 %. Касание пружины в этих опытах приходилось на тот же шаг или на два шага раньше. В девятом опыте при натяжении 51 шар в 6.3.2 остался на пружине, а в 7.0 вылетел. За две секунды в трёх опытах 7.0 набрала 2000 очков, а в шести счёт совпал с прежним нулём. Это очки за фактически достигнутые элементы. Привычную силу по длительности нажатия и положению стика можно выбирать по-прежнему. Выученные до конкретной дорожки броски стоит заново пристрелять.
+Across the eight trials in which both versions launched the ball, first-frame launch speed changed by −6.1% to +5.4%. Plunger contact occurred on the same step or up to two steps earlier. In the ninth trial, at 51 units of tension, the ball stayed on the plunger in 6.3.2 and launched in 7.0. Within two seconds, 7.0 scored 2,000 points in three trials by reaching scoring elements. The other six matched the previous score of zero. Familiar button timings and stick positions still select the same pull strength, but a skill shot aimed at a particular lane may need a small adjustment.
