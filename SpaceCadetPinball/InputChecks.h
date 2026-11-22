@@ -127,9 +127,18 @@ namespace inputChecks
             return map.size() == 1 && map.front() == action;
         };
         const auto left = GameBindings::LeftFlipper, right = GameBindings::RightFlipper;
+        check(only({InputTypes::Keyboard, SDLK_LSHIFT}, left) && only({InputTypes::Keyboard, SDLK_LCTRL}, left) &&
+              only({InputTypes::Keyboard, SDLK_z}, left) && only({InputTypes::Keyboard, SDLK_RSHIFT}, right) &&
+              only({InputTypes::Keyboard, SDLK_RCTRL}, right) && only({InputTypes::Keyboard, SDLK_PERIOD}, right) &&
+              only({InputTypes::Keyboard, SDLK_RIGHT}, GameBindings::RightTableBump),
+              "three keyboard bindings per flipper and a separate right nudge");
         std::vector<GameInput> previous;
         for (auto& action : options::Options.Key)
             for (auto input : action.Inputs) previous.push_back(input);
+        options::BeginBinding(left, 4); tap(SDLK_j);
+        options::Options.Key[~left].Load();
+        check(only({InputTypes::Keyboard,SDLK_j},left) && only({InputTypes::Keyboard,SDLK_LSHIFT},left) &&
+              only({InputTypes::Keyboard,SDLK_LCTRL},left), "editing and reloading a third key preserves the first two");
         for (const auto confirm : {SDLK_RETURN, SDLK_KP_ENTER})
         {
             options::BeginBinding(left);

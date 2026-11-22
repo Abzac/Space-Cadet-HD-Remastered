@@ -57,9 +57,9 @@ An English or Russian in-game menu opens with **Esc**. The dot-matrix score and 
 
 | Action | Keyboard or mouse | Controller |
 | --- | --- | --- |
-| Flip left / right | Left / right **Shift**, or left / right mouse button | **LB / RB** on Xbox, **L1 / R1** on PlayStation |
+| Flip left / right | Left: **Left Shift**, **Left Ctrl** or **Z**. Right: **Right Shift**, **Right Ctrl** or **.** (period). Mouse: left / right button | **LB / RB** on Xbox, **L1 / R1** on PlayStation |
 | Pull and release the plunger | Hold and release **Space** or the middle mouse button | Hold and release **A / Cross**, or pull the **right stick** down and let it return |
-| Nudge left / right / up | **X / . / ↑**, or the side mouse buttons for left and right | **D-pad** or **left stick** in that direction |
+| Nudge left / right / up | **X / → / ↑**, or the side mouse buttons for left and right | **D-pad** or **left stick** in that direction |
 | Open the menu or go back | **Esc** | **Menu / Options** |
 | Open in-game help | **F1** | Choose **Help** in the menu |
 | Start a new game | **F2**, or **Space** after game over | Can be bound in Controls |
@@ -68,7 +68,7 @@ An English or Russian in-game menu opens with **Esc**. The dot-matrix score and 
 | Toggle table sounds / music | **F5 / F6** | Can be bound in Controls |
 | Rebind controls | **F8** or **Esc → Controls** | Choose **Controls** in the menu |
 
-Xbox controllers, PlayStation DualShock 4 and DualSense, and standard controllers exposed by Steam Input use SDL's game-controller mappings. Select an action and press the physical key, mouse button, trigger or controller button you want. Left and right modifiers have separate bindings. The analog plunger remembers the deepest pull before release. Analog nudging and analog launching can be switched independently.
+Xbox controllers, PlayStation DualShock 4 and DualSense, and standard controllers exposed by Steam Input use SDL's game-controller mappings. In **Controls**, choose keyboard binding **1**, **2** or **3** before selecting an action to edit that key independently. Select an action and press the physical key, mouse button, trigger or controller button you want. Left and right modifiers have separate bindings. The analog plunger remembers the deepest pull before release. Analog nudging and analog launching can be switched independently.
 
 ## Run or build on Windows x64
 

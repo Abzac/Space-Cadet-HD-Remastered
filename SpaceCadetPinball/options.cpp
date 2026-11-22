@@ -29,14 +29,16 @@ optionsStruct options::Options
 			Msg::KEYMAPPER_FlipperL,
 			{InputTypes::Keyboard, SDLK_LSHIFT},
 			{InputTypes::Mouse, SDL_BUTTON_LEFT},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER}
+			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER},
+			{InputTypes::Keyboard, SDLK_LCTRL}, {InputTypes::Keyboard, SDLK_z}
 		},
 		{
 			"Right Flipper key",
 			Msg::KEYMAPPER_FlipperR,
 			{InputTypes::Keyboard, SDLK_RSHIFT},
 			{InputTypes::Mouse,SDL_BUTTON_RIGHT},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER}
+			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER},
+			{InputTypes::Keyboard, SDLK_RCTRL}, {InputTypes::Keyboard, SDLK_PERIOD}
 		},
 		{
 			"Plunger key",
@@ -55,7 +57,7 @@ optionsStruct options::Options
 		{
 			"Right Table Bump key",
 			Msg::KEYMAPPER_BumpRight,
-			{InputTypes::Keyboard, SDLK_PERIOD},
+			{InputTypes::Keyboard, SDLK_RIGHT},
 			{InputTypes::Mouse,SDL_BUTTON_X2},
 			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_RIGHT}
 		},
@@ -195,6 +197,28 @@ void options::InitPrimary()
 
 	for (const auto opt : AllOptions)
 		opt->Load();
+	if (!get_int("Keyboard alternatives revision", 0))
+	{
+		// Slots 0–2 already existed. Never take a key from an explicit binding.
+		auto occupied = [](GameInput key) {
+			for (const auto& row : Options.Key)
+				for (int slot = 0; slot < 3; ++slot)
+					if (row.Inputs[slot] == key) return true;
+			return false;
+		};
+		auto& nudge = Options.Key[~GameBindings::RightTableBump].Inputs[0];
+		if (nudge == GameInput{InputTypes::Keyboard, SDLK_PERIOD} &&
+		    !occupied({InputTypes::Keyboard, SDLK_RIGHT}))
+			nudge = {InputTypes::Keyboard, SDLK_RIGHT};
+		for (auto& row : Options.Key)
+		{
+			for (int slot = 3; slot < ControlOption::SlotCount; ++slot)
+				if (row.Inputs[slot].Type == InputTypes::Keyboard && occupied(row.Inputs[slot]))
+					row.Inputs[slot] = {};
+			row.Save();
+		}
+		set_int("Keyboard alternatives revision", 1);
+	}
 	if (!get_int("Sound voice revision",0))
 	{
 		// 6.x wrote its eight-voice default even for untouched profiles.
@@ -361,6 +385,7 @@ void options::toggle(Menu1 uIDCheckItem)
 namespace
 {
 GameBindings capture = GameBindings::Max;
+int captureKeyboardSlot = 0;
 std::string bindingFeedback;
 std::map<SDL_JoystickID, SDL_GameController*> controllers;
 std::map<std::pair<SDL_JoystickID, int>, bool> triggers;
@@ -564,10 +589,11 @@ void options::RouteInput(GameInput input, SDL_JoystickID device, bool down, bool
 
 bool options::WaitingForInput() { return capture != GameBindings::Max; }
 
-void options::BeginBinding(GameBindings action)
+void options::BeginBinding(GameBindings action, int keyboardSlot)
 {
 	if (action < GameBindings::Min || action >= GameBindings::Max) return;
 	capture = action;
+	captureKeyboardSlot = keyboardSlot;
 	bindingFeedback.clear();
 }
 
@@ -601,7 +627,7 @@ void options::InputDown(GameInput input)
 	int slot = -1;
 	switch (input.Type)
 	{
-	case InputTypes::Keyboard: slot = 0; break;
+	case InputTypes::Keyboard: slot = captureKeyboardSlot; break;
 	case InputTypes::Mouse: slot = 1; break;
 	case InputTypes::ControllerTrigger:
 	case InputTypes::GameController: slot = 2; break;
@@ -650,6 +676,15 @@ void options::DrawControlBindings()
 		ImGui::SetTooltip("%s", textForLanguage("Отклоните влево, вправо или вверх. Для следующего толчка верните стик в центр.",
 		                                       "Flick left, right or up. Return to center before the next nudge."));
 	ImGui::Spacing();
+	static int keyboardColumn = 0;
+	constexpr int keyboardSlots[] = {0, 3, 4};
+	ImGui::TextUnformatted(textForLanguage("Назначение клавиши", "Keyboard binding"));
+	for (int i = 0; i < 3; ++i)
+	{
+		ImGui::SameLine();
+		const char* labels[] = {"1", "2", "3"};
+		ImGui::RadioButton(labels[i], &keyboardColumn, i);
+	}
 	if (ImGui::BeginTable("##bindings", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp))
 	{
 		ImGui::TableSetupColumn(textForLanguage("Действие", "Action"), ImGuiTableColumnFlags_WidthStretch, 2.0f);
@@ -668,11 +703,11 @@ void options::DrawControlBindings()
 			ImGui::TableSetColumnIndex(0);
 			ImGui::PushID(~action);
 			if (ImGui::Selectable(actionName(action), capture == action, ImGuiSelectableFlags_SpanAllColumns,
-			                      ImVec2(0, ImGui::GetFrameHeight()))) BeginBinding(action);
+			                      ImVec2(0, ImGui::GetFrameHeight()))) BeginBinding(action, keyboardSlots[keyboardColumn]);
 			for (int i = 0; i < 3; ++i)
 			{
 				ImGui::TableSetColumnIndex(i + 1);
-				const auto& input = Options.Key[~action].Inputs[i];
+				const auto& input = Options.Key[~action].Inputs[i == 0 ? keyboardSlots[keyboardColumn] : i];
 				ImGui::TextUnformatted(input.Type == InputTypes::None ? "-" : input.GetShortInputDescription().c_str());
 			}
 			ImGui::PopID();

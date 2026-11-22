@@ -127,7 +127,7 @@ public:
 	static void ShowControlDialog();
 	static void RenderControlDialog();
 	static bool WaitingForInput();
-	static void BeginBinding(GameBindings action);
+	static void BeginBinding(GameBindings action, int keyboardSlot = 0);
 	static void CancelBinding();
 	static void DrawControlBindings();
 	static void ConfigureControllers();
@@ -227,21 +227,22 @@ struct BoolOption : OptionBaseT<bool>
 struct ControlOption : OptionBase
 {
 	const Msg Description;
-	GameInput Defaults[3];
-	GameInput Inputs[3];
+	static constexpr int SlotCount = 5; // Primary keyboard, mouse, controller, keyboard alternatives.
+	GameInput Defaults[SlotCount];
+	GameInput Inputs[SlotCount];
 
 	ControlOption(LPCSTR name, Msg description, GameInput defaultKeyboard, GameInput defaultMouse,
-	              GameInput defaultController) :
+	              GameInput defaultController, GameInput secondKey = {}, GameInput thirdKey = {}) :
 		OptionBase(name),
 		Description(description),
-		Defaults{defaultKeyboard, defaultMouse, defaultController},
-		Inputs{defaultKeyboard, defaultMouse, defaultController}
+		Defaults{defaultKeyboard, defaultMouse, defaultController, secondKey, thirdKey},
+		Inputs{defaultKeyboard, defaultMouse, defaultController, secondKey, thirdKey}
 	{
 	}
 
 	void Load() override
 	{
-		for (auto i = 0u; i <= 2; i++)
+		for (int i = 0; i < SlotCount; i++)
 		{
 			auto name = std::string{ Name } + " " + std::to_string(i);
 			Inputs[i].Type = static_cast<InputTypes>(options::get_int((name + " type").c_str(),
@@ -252,7 +253,7 @@ struct ControlOption : OptionBase
 
 	void Save() const override
 	{
-		for (auto i = 0u; i <= 2; i++)
+		for (int i = 0; i < SlotCount; i++)
 		{
 			auto name = std::string{ Name } + " " + std::to_string(i);
 			options::set_int((name + " type").c_str(), static_cast<int>(Inputs[i].Type));

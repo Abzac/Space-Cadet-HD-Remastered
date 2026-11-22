@@ -302,6 +302,10 @@ namespace
 				{
 					ImGui::TableSetColumnIndex(device+1);
 					ImGui::TextWrapped("%s",binding(action,device).c_str());
+					if (device == 0)
+						for (int slot = 3; slot < ControlOption::SlotCount; ++slot)
+							if (options::Options.Key[~action].Inputs[slot].Type == InputTypes::Keyboard)
+								ImGui::TextWrapped("%s", binding(action,slot).c_str());
 				}
 			}
 			ImGui::TableNextRow();
